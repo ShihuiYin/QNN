@@ -45,7 +45,7 @@ def init_params(net):
 _, term_width = os.popen('stty size', 'r').read().split()
 term_width = int(term_width)
 
-TOTAL_BAR_LENGTH = 65.
+TOTAL_BAR_LENGTH = 50.
 last_time = time.time()
 begin_time = last_time
 def progress_bar(current, total, msg=None):
@@ -122,3 +122,40 @@ def format_time(seconds):
     if f == '':
         f = '0ms'
     return f
+
+__optimizers = {
+    'SGD': torch.optim.SGD,
+    'ASGD': torch.optim.ASGD,
+    'Adam': torch.optim.Adam,
+    'Adamax': torch.optim.Adamax,
+    'Adagrad': torch.optim.Adagrad,
+    'Adadelta': torch.optim.Adadelta,
+    'Rprop': torch.optim.Rprop,
+    'RMSprop': torch.optim.RMSprop
+}
+
+
+def adjust_optimizer(optimizer, epoch, config):
+    """Reconfigures the optimizer according to epoch and config dict"""
+    def modify_optimizer(optimizer, setting):
+        if 'optimizer' in setting:
+            optimizer = __optimizers[setting['optimizer']](
+                optimizer.param_groups)
+            logging.debug('OPTIMIZER - setting method = %s' %
+                          setting['optimizer'])
+        for param_group in optimizer.param_groups:
+            for key in param_group.keys():
+                if key in setting:
+                    logging.debug('OPTIMIZER - setting %s = %s' %
+                                  (key, setting[key]))
+                    param_group[key] = setting[key]
+        return optimizer
+
+    if callable(config):
+        optimizer = modify_optimizer(optimizer, config(epoch))
+    else:
+        for e in range(epoch + 1):  # run over all epochs - sticky setting
+            if e in config:
+                optimizer = modify_optimizer(optimizer, config[e])
+
+    return optimizer
