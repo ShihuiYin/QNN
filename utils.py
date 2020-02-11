@@ -70,7 +70,7 @@ def progress_bar(current, total, msg=None):
     tot_time = cur_time - begin_time
 
     L = []
-    L.append(' | Tot: %.2s' % tot_time)
+    L.append(' | Tot: %.1fs' % tot_time)
     if msg:
         L.append(' | ' + msg)
 
