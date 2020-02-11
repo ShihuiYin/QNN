@@ -16,7 +16,7 @@ from utils import progress_bar, adjust_optimizer
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
-parser.add_argument('--epochs', default=200, type=int, help='number of total epochs to run')
+parser.add_argument('--epochs', default=350, type=int, help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, help='manual epoch number')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
@@ -53,7 +53,8 @@ classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship'
 
 # Model
 print('==> Building model..')
-net = VGG_binary('VGG')
+#net = VGG_binary('VGG')
+net = VGG('VGG16')
 # net = ResNet18()
 # net = PreActResNet18()
 # net = GoogLeNet()
@@ -70,7 +71,9 @@ print(net)
 regime = getattr(net, 'regime', {0: {'optimizer': args.optimizer,
                                      'lr': args.lr,
                                      'momentum': args.momentum,
-                                     'weight_decay': args.weight_decay}})
+                                     'weight_decay': args.weight_decay},
+                                 150: {'lr': args.lr / 10.},
+                                 250: {'lr': args.lr / 100.}})
 net = net.to(device)
 if device == 'cuda':
     net = torch.nn.DataParallel(net)
