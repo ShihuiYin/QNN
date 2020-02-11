@@ -32,13 +32,13 @@ class VGG_binary(nn.Module):
                 nn.BatchNorm1d(10)
                 )
         self.regime = {
-            0: {'optimizer': 'Adam', 'betas': (0.9, 0.999),'lr': 5e-3},
-            40: {'lr': 1e-3},
-            80: {'lr': 5e-4},
-            100: {'lr': 1e-4},
-            120: {'lr': 5e-5},
-            140: {'lr': 1e-5}
-            }
+                0: {'optimizer': 'Adam', 'betas': (0.9, 0.999),'lr': 5e-3},
+                40: {'lr': 1e-3},
+                80: {'lr': 5e-4},
+                100: {'lr': 1e-4},
+                120: {'lr': 5e-5},
+                140: {'lr': 1e-5}
+                }
 
     def forward(self, x):
         out = self.features(x)
