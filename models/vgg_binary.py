@@ -1,7 +1,10 @@
 '''VGG11/13/16/19 in Pytorch.'''
 import torch
 import torch.nn as nn
-from quant import BinarizeAct, BinarizeConv2d, BinarizeLinear, BinarizeActLayer
+from quant import BinarizeConv2d, BinarizeLinear, BinarizeActLayer
+BinarizeConv2d = nn.Conv2d
+BinarizeLinear = nn.Linear
+BinarizeActLayer = nn.Hardtanh
 
 cfg = {
     'VGG': [128, 128, 'M', 256, 256, 'M', 512, 512, 'M'],
