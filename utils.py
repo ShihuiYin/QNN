@@ -8,6 +8,7 @@ import sys
 import time
 import math
 
+import torch
 import torch.nn as nn
 import torch.nn.init as init
 
@@ -65,12 +66,10 @@ def progress_bar(current, total, msg=None):
     sys.stdout.write(']')
 
     cur_time = time.time()
-    step_time = cur_time - last_time
     last_time = cur_time
     tot_time = cur_time - begin_time
 
     L = []
-    L.append('  Step: %s' % format_time(step_time))
     L.append(' | Tot: %s' % format_time(tot_time))
     if msg:
         L.append(' | ' + msg)
@@ -141,13 +140,9 @@ def adjust_optimizer(optimizer, epoch, config):
         if 'optimizer' in setting:
             optimizer = __optimizers[setting['optimizer']](
                 optimizer.param_groups)
-            logging.debug('OPTIMIZER - setting method = %s' %
-                          setting['optimizer'])
         for param_group in optimizer.param_groups:
             for key in param_group.keys():
                 if key in setting:
-                    logging.debug('OPTIMIZER - setting %s = %s' %
-                                  (key, setting[key]))
                     param_group[key] = setting[key]
         return optimizer
 

@@ -12,12 +12,15 @@ import os
 import argparse
 
 from models import *
-from utils import progress_bar
+from utils import progress_bar, adjust_optimizer
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
+parser.add_argument('--optimizer', default='SGD', type=str, help='optimizer function used')
+parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
+parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float, help='weight decay (default: 1e-4)')
 args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -48,8 +51,8 @@ classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship'
 
 # Model
 print('==> Building model..')
-# net = VGG('VGG16')
-net = ResNet18()
+net = VGG_binary('VGG')
+# net = ResNet18()
 # net = PreActResNet18()
 # net = GoogLeNet()
 # net = DenseNet121()
@@ -75,6 +78,10 @@ if args.resume:
     best_acc = checkpoint['acc']
     start_epoch = checkpoint['epoch']
 
+regime = getattr(net, 'regime', {0: {'optimizer': args.optimizer,
+                                       'lr': args.lr,
+                                       'momentum': args.momentum,
+                                       'weight_decay': args.weight_decay}})
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
 
@@ -137,5 +144,6 @@ def test(epoch):
 
 
 for epoch in range(start_epoch, start_epoch+200):
+    optimizer = adjust_optimizer(optimizer, epoch, regime)
     train(epoch)
     test(epoch)
