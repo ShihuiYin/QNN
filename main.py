@@ -66,6 +66,7 @@ net = VGG_binary('VGG')
 # net = SENet18()
 # net = ShuffleNetV2(1)
 # net = EfficientNetB0()
+print(net)
 regime = getattr(net, 'regime', {0: {'optimizer': args.optimizer,
                                      'lr': args.lr,
                                      'momentum': args.momentum,
