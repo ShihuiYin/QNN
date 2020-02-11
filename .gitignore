@@ -1,0 +1,6 @@
+*/*.pyc
+*.pyc
+checkpoint/
+data/
+*.swp
+*/*.swp

@@ -25,16 +25,17 @@ def Binarize(tensor):
 
 class BinarizeAct(Function):
     @staticmethod
-    def forward(self, input):
-        self.save_for_backward(input)
+    def forward(ctx, input):
+        ctx.save_for_backward(input)
         return torch.sign(input)
 
     @staticmethod
-    def backward(self, grad_output):
-        input = self.saved_tensors
-        grad_output[input > 1] = 0
-        grad_output[input < -1] = 0
-        return grad_output
+    def backward(ctx, grad_output):
+        input, = ctx.saved_tensors
+        grad_input = grad_output.clone()
+        #grad_input[input > 1] = 0
+        #grad_input[input < -1] = 0
+        return grad_input
 
 class BinarizeActLayer(nn.Module):
     def __init__(self):

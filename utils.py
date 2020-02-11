@@ -8,6 +8,7 @@ import sys
 import time
 import math
 
+import torch
 import torch.nn as nn
 import torch.nn.init as init
 
@@ -45,7 +46,7 @@ def init_params(net):
 _, term_width = os.popen('stty size', 'r').read().split()
 term_width = int(term_width)
 
-TOTAL_BAR_LENGTH = 65.
+TOTAL_BAR_LENGTH = 50.
 last_time = time.time()
 begin_time = last_time
 def progress_bar(current, total, msg=None):
@@ -65,13 +66,11 @@ def progress_bar(current, total, msg=None):
     sys.stdout.write(']')
 
     cur_time = time.time()
-    step_time = cur_time - last_time
     last_time = cur_time
     tot_time = cur_time - begin_time
 
     L = []
-    L.append('  Step: %s' % format_time(step_time))
-    L.append(' | Tot: %s' % format_time(tot_time))
+    L.append(' | Tot: %.1fs' % tot_time)
     if msg:
         L.append(' | ' + msg)
 
@@ -91,34 +90,35 @@ def progress_bar(current, total, msg=None):
         sys.stdout.write('\n')
     sys.stdout.flush()
 
-def format_time(seconds):
-    days = int(seconds / 3600/24)
-    seconds = seconds - days*3600*24
-    hours = int(seconds / 3600)
-    seconds = seconds - hours*3600
-    minutes = int(seconds / 60)
-    seconds = seconds - minutes*60
-    secondsf = int(seconds)
-    seconds = seconds - secondsf
-    millis = int(seconds*1000)
+__optimizers = {
+    'SGD': torch.optim.SGD,
+    'ASGD': torch.optim.ASGD,
+    'Adam': torch.optim.Adam,
+    'Adamax': torch.optim.Adamax,
+    'Adagrad': torch.optim.Adagrad,
+    'Adadelta': torch.optim.Adadelta,
+    'Rprop': torch.optim.Rprop,
+    'RMSprop': torch.optim.RMSprop
+}
 
-    f = ''
-    i = 1
-    if days > 0:
-        f += str(days) + 'D'
-        i += 1
-    if hours > 0 and i <= 2:
-        f += str(hours) + 'h'
-        i += 1
-    if minutes > 0 and i <= 2:
-        f += str(minutes) + 'm'
-        i += 1
-    if secondsf > 0 and i <= 2:
-        f += str(secondsf) + 's'
-        i += 1
-    if millis > 0 and i <= 2:
-        f += str(millis) + 'ms'
-        i += 1
-    if f == '':
-        f = '0ms'
-    return f
+
+def adjust_optimizer(optimizer, epoch, config):
+    """Reconfigures the optimizer according to epoch and config dict"""
+    def modify_optimizer(optimizer, setting):
+        if 'optimizer' in setting:
+            optimizer = __optimizers[setting['optimizer']](
+                optimizer.param_groups)
+        for param_group in optimizer.param_groups:
+            for key in param_group.keys():
+                if key in setting:
+                    param_group[key] = setting[key]
+        return optimizer
+
+    if callable(config):
+        optimizer = modify_optimizer(optimizer, config(epoch))
+    else:
+        for e in range(epoch + 1):  # run over all epochs - sticky setting
+            if e in config:
+                optimizer = modify_optimizer(optimizer, config[e])
+
+    return optimizer

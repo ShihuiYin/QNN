@@ -12,17 +12,22 @@ import os
 import argparse
 
 from models import *
-from utils import progress_bar
+from utils import progress_bar, adjust_optimizer
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
+parser.add_argument('--epochs', default=200, type=int, help='number of total epochs to run')
+parser.add_argument('--start-epoch', default=0, type=int, help='manual epoch number')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
+parser.add_argument('--optimizer', default='SGD', type=str, help='optimizer function used')
+parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
+parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float, help='weight decay')
 args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 best_acc = 0  # best test accuracy
-start_epoch = 0  # start from epoch 0 or last checkpoint epoch
+start_epoch = args.start_epoch
 
 # Data
 print('==> Preparing data..')
@@ -39,16 +44,16 @@ transform_test = transforms.Compose([
 ])
 
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True, num_workers=2)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=100, shuffle=True, num_workers=1)
 
 testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
-testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
+testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=1)
 
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
 # Model
 print('==> Building model..')
-net = VGG('VGG16')
+net = VGG_binary('VGG')
 # net = ResNet18()
 # net = PreActResNet18()
 # net = GoogLeNet()
@@ -61,6 +66,11 @@ net = VGG('VGG16')
 # net = SENet18()
 # net = ShuffleNetV2(1)
 # net = EfficientNetB0()
+print(net)
+regime = getattr(net, 'regime', {0: {'optimizer': args.optimizer,
+                                     'lr': args.lr,
+                                     'momentum': args.momentum,
+                                     'weight_decay': args.weight_decay}})
 net = net.to(device)
 if device == 'cuda':
     net = torch.nn.DataParallel(net)
@@ -80,7 +90,7 @@ optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5
 
 # Training
 def train(epoch):
-    print('\nEpoch: %d' % epoch)
+    print('\nEpoch: %d/%d\tLR: %.4f' % (epoch, args.epochs, optimizer.param_groups[0]['lr']))
     net.train()
     train_loss = 0
     correct = 0
@@ -98,8 +108,8 @@ def train(epoch):
         total += targets.size(0)
         correct += predicted.eq(targets).sum().item()
 
-        progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-            % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+        progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%%'
+            % (train_loss/(batch_idx+1), 100.*correct/total))
 
 def test(epoch):
     global best_acc
@@ -118,13 +128,12 @@ def test(epoch):
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
 
-            progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+            progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%%'
+                % (test_loss/(batch_idx+1), 100.*correct/total))
 
     # Save checkpoint.
     acc = 100.*correct/total
     if acc > best_acc:
-        print('Saving..')
         state = {
             'net': net.state_dict(),
             'acc': acc,
@@ -136,6 +145,7 @@ def test(epoch):
         best_acc = acc
 
 
-for epoch in range(start_epoch, start_epoch+200):
+for epoch in range(start_epoch, args.epochs):
+    optimizer = adjust_optimizer(optimizer, epoch, regime)
     train(epoch)
     test(epoch)

@@ -1,7 +1,10 @@
 '''VGG11/13/16/19 in Pytorch.'''
 import torch
 import torch.nn as nn
-from quant import BinarizeAct, BinarizeConv2d, BinarizeLinear, BinarizeActLayer
+from quant import BinarizeConv2d, BinarizeLinear, BinarizeActLayer
+BinarizeConv2d = nn.Conv2d
+BinarizeLinear = nn.Linear
+BinarizeActLayer = nn.Identity
 
 cfg = {
     'VGG': [128, 128, 'M', 256, 256, 'M', 512, 512, 'M'],
@@ -13,7 +16,7 @@ cfg = {
 
 
 class VGG_binary(nn.Module):
-    def __init__(self, vgg_name, fc=512):
+    def __init__(self, vgg_name, fc=1024):
         super(VGG_binary, self).__init__()
         self.features = self._make_layers(cfg[vgg_name])
         num_maxpooling_layers = cfg[vgg_name].count('M')
@@ -26,8 +29,17 @@ class VGG_binary(nn.Module):
                 nn.BatchNorm1d(fc),
                 BinarizeActLayer(),
                 BinarizeLinear(fc, 10),
-                nn.BatchNorm1d(10)
+                nn.BatchNorm1d(10),
+                nn.LogSoftmax()
                 )
+        self.regime = {
+                0: {'optimizer': 'Adam', 'betas': (0.9, 0.999),'lr': 5e-2},
+                40: {'lr': 1e-3},
+                80: {'lr': 5e-4},
+                100: {'lr': 1e-4},
+                120: {'lr': 5e-5},
+                140: {'lr': 1e-5}
+                }
 
     def forward(self, x):
         out = self.features(x)
