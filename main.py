@@ -25,6 +25,7 @@ parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float, help='weight decay')
 parser.add_argument('--evaluate', type=str, help='evaluate model FILE on validation set')
 parser.add_argument('--save', type=str, help='path to save model')
+parser.add_argument('--arch', type=str, default='VGG', help='model architecture')
 args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -53,8 +54,13 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
 
 # Model
 print('==> Building model..')
+model_dict = {
+        'VGG_binary': VGG_binary('VGG'),
+        'VGG': VGG('VGG'),
+        'VGG16': VGG('VGG16')}
+model = model_dict[args.arch]
 #model = VGG_binary('VGG')
-model = VGG('VGG16')
+#model = VGG('VGG16')
 # model = ResNet18()
 # model = PreActResNet18()
 # model = GoogLeNet()
