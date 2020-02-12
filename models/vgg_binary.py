@@ -4,7 +4,7 @@ import torch.nn as nn
 from quant import BinarizeConv2d, BinarizeLinear, BinarizeActLayer
 BinarizeConv2d = nn.Conv2d
 BinarizeLinear = nn.Linear
-BinarizeActLayer = nn.Identity
+#BinarizeActLayer = nn.Hardtanh
 
 cfg = {
     'VGG': [128, 128, 'M', 256, 256, 'M', 512, 512, 'M'],
@@ -28,18 +28,16 @@ class VGG_binary(nn.Module):
                 BinarizeLinear(fc, fc),
                 nn.BatchNorm1d(fc),
                 BinarizeActLayer(),
-                BinarizeLinear(fc, 10),
-                nn.BatchNorm1d(10),
-                nn.LogSoftmax()
+                BinarizeLinear(fc, 10)
                 )
-        self.regime = {
-                0: {'optimizer': 'Adam', 'betas': (0.9, 0.999),'lr': 5e-2},
-                40: {'lr': 1e-3},
-                80: {'lr': 5e-4},
-                100: {'lr': 1e-4},
-                120: {'lr': 5e-5},
-                140: {'lr': 1e-5}
-                }
+        # self.regime = {
+        #         0: {'optimizer': 'Adam', 'betas': (0.9, 0.999),'lr': 5e-2},
+        #         40: {'lr': 1e-3},
+        #         80: {'lr': 5e-4},
+        #         100: {'lr': 1e-4},
+        #         120: {'lr': 5e-5},
+        #         140: {'lr': 1e-5}
+        #         }
 
     def forward(self, x):
         out = self.features(x)
@@ -52,7 +50,7 @@ class VGG_binary(nn.Module):
         in_channels = 3
         for x in cfg:
             if in_channels == 3:
-                layers += [nn.Conv2d(in_channels, x, kernel_size=3, padding=1)]
+                layers += [BinarizeConv2d(in_channels, x, kernel_size=3, padding=1)]
                 layers += [nn.BatchNorm2d(x)]
                 in_channels = x
             else:
