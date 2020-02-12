@@ -93,3 +93,4 @@ class BinarizeConv2d(nn.Conv2d):
             out += self.bias.view(1, -1, 1, 1).expand_as(out)
 
         return out
+

@@ -78,6 +78,7 @@ model = model_dict[args.arch]
 # model = ShuffleNetV2(1)
 # model = EfficientNetB0()
 print(model)
+
 regime = getattr(model, 'regime', {0: {'optimizer': args.optimizer,
                                      'lr': args.lr,
                                      'momentum': args.momentum,
@@ -132,7 +133,8 @@ def train(epoch):
         optimizer.step()
         for param in model.parameters():
             if hasattr(param, 'org'):
-                param.org.copy_(param.data.clamp_(-1,1))
+                #param.org.copy_(param.data.clamp_(-1,1))
+                param.org.copy_(param.data)
 
         train_loss += loss.item()
         _, predicted = outputs.max(1)
@@ -143,6 +145,7 @@ def train(epoch):
             % (train_loss/(batch_idx+1), 100.*correct/total))
     train_acc = 100.*correct/total
     train_loss = train_loss / batch_idx
+    return train_loss, train_acc
 
 def test(epoch):
     global best_acc
@@ -178,6 +181,7 @@ def test(epoch):
             os.mkdir('checkpoint')
         torch.save(state, os.path.join('./checkpoint/', args.save))
         best_acc = acc
+    return test_loss, test_acc
 
 if args.evaluate:
     test(0)
@@ -187,7 +191,7 @@ for epoch in range(start_epoch, args.epochs):
     optimizer = adjust_optimizer(optimizer, epoch, regime)
     if epoch == start_epoch:
         print(optimizer)
-    train(epoch)
-    test(epoch)
-    print('Epoch: %d/%d\tLR: %.4f\tTrain Loss: %.3f\tTrain Acc: %.2f\tTest Loss: %.3f\tTest Acc: %.2f' %
+    train_loss, train_acc = train(epoch)
+    test_loss, test_acc = test(epoch)
+    print('Epoch: %d/%d | LR: %.4f | Train Loss: %.3f | Train Acc: %.2f | Test Loss: %.3f | Test Acc: %.2f' %
             (epoch, args.epochs, optimizer.param_groups[0]['lr'], train_loss, train_acc, test_loss, test_acc))
