@@ -2,8 +2,8 @@
 import torch
 import torch.nn as nn
 from quant import BinarizeConv2d, BinarizeLinear, BinarizeActLayer
-BinarizeConv2d = nn.Conv2d
-BinarizeLinear = nn.Linear
+#BinarizeConv2d = nn.Conv2d
+#BinarizeLinear = nn.Linear
 #BinarizeActLayer = nn.Hardtanh
 
 cfg = {
