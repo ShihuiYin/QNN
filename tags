@@ -10,11 +10,8 @@ BasicBlock	models/shufflenetv2.py	/^class BasicBlock(nn.Module):$/;"	c
 Binarize	models/quant.py	/^def Binarize(tensor):$/;"	f
 BinarizeAct	models/quant.py	/^class BinarizeAct(Function):$/;"	c
 BinarizeActLayer	models/quant.py	/^class BinarizeActLayer(nn.Module):$/;"	c
-BinarizeActLayer	models/vgg_binary.py	/^BinarizeActLayer = nn.Identity$/;"	v
 BinarizeConv2d	models/quant.py	/^class BinarizeConv2d(nn.Conv2d):$/;"	c
-BinarizeConv2d	models/vgg_binary.py	/^BinarizeConv2d = nn.Conv2d$/;"	v
 BinarizeLinear	models/quant.py	/^class BinarizeLinear(nn.Linear):$/;"	c
-BinarizeLinear	models/vgg_binary.py	/^BinarizeLinear = nn.Linear$/;"	v
 Block	models/efficientnet.py	/^class Block(nn.Module):$/;"	c
 Block	models/mobilenet.py	/^class Block(nn.Module):$/;"	c
 Block	models/mobilenetv2.py	/^class Block(nn.Module):$/;"	c

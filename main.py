@@ -30,6 +30,10 @@ args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 best_acc = 0  # best test accuracy
+train_loss = 0
+train_acc = 0
+test_loss = 0
+test_acc = 0
 start_epoch = args.start_epoch
 
 # Data
@@ -112,7 +116,6 @@ optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay
 
 # Training
 def train(epoch):
-    print('\nEpoch: %d/%d\tLR: %.4f' % (epoch, args.epochs, optimizer.param_groups[0]['lr']))
     model.train()
     train_loss = 0
     correct = 0
@@ -123,7 +126,13 @@ def train(epoch):
         outputs = model(inputs)
         loss = criterion(outputs, targets)
         loss.backward()
+        for param in model.parameters():
+            if hasattr(param, 'org'):
+                param.data.copy_(param.org)
         optimizer.step()
+        for param in model.parameters():
+            if hasattr(param, 'org'):
+                param.org.copy_(param.data.clamp_(-1,1))
 
         train_loss += loss.item()
         _, predicted = outputs.max(1)
@@ -132,6 +141,8 @@ def train(epoch):
 
         progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%%'
             % (train_loss/(batch_idx+1), 100.*correct/total))
+    train_acc = 100.*correct/total
+    train_loss = train_loss / batch_idx
 
 def test(epoch):
     global best_acc
@@ -154,6 +165,8 @@ def test(epoch):
                 % (test_loss/(batch_idx+1), 100.*correct/total))
 
     # Save checkpoint.
+    test_acc = 100.*correct/total
+    test_loss = test_loss/batch_idx
     acc = 100.*correct/total
     if acc > best_acc and args.save:
         state = {
@@ -172,5 +185,9 @@ if args.evaluate:
 
 for epoch in range(start_epoch, args.epochs):
     optimizer = adjust_optimizer(optimizer, epoch, regime)
+    if epoch == start_epoch:
+        print(optimizer)
     train(epoch)
     test(epoch)
+    print('Epoch: %d/%d\tLR: %.4f\tTrain Loss: %.3f\tTrain Acc: %.2f\tTest Loss: %.3f\tTest Acc: %.2f' %
+            (epoch, args.epochs, optimizer.param_groups[0]['lr'], train_loss, train_acc, test_loss, test_acc))
