@@ -33,8 +33,7 @@ class BinarizeAct(Function):
     def backward(ctx, grad_output):
         input, = ctx.saved_tensors
         grad_input = grad_output.clone()
-        grad_input[input > 1] = 0
-        grad_input[input < -1] = 0
+        #grad_input[abs(input) > 1] = 0
         return grad_input
 
 class BinarizeActLayer(nn.Module):
@@ -42,7 +41,7 @@ class BinarizeActLayer(nn.Module):
         super(BinarizeActLayer, self).__init__()
 
     def forward(self, x):
-        return BinarizeAct.apply(x)
+        return BinarizeAct.apply(nn.functional.hardtanh_(x))
 
 class HingeLoss(nn.Module):
     def __init__(self):
