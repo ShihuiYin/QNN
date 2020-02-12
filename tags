@@ -10,7 +10,7 @@ BasicBlock	models/shufflenetv2.py	/^class BasicBlock(nn.Module):$/;"	c
 Binarize	models/quant.py	/^def Binarize(tensor):$/;"	f
 BinarizeAct	models/quant.py	/^class BinarizeAct(Function):$/;"	c
 BinarizeActLayer	models/quant.py	/^class BinarizeActLayer(nn.Module):$/;"	c
-BinarizeActLayer	models/vgg_binary.py	/^BinarizeActLayer = nn.Hardtanh$/;"	v
+BinarizeActLayer	models/vgg_binary.py	/^BinarizeActLayer = nn.Identity$/;"	v
 BinarizeConv2d	models/quant.py	/^class BinarizeConv2d(nn.Conv2d):$/;"	c
 BinarizeConv2d	models/vgg_binary.py	/^BinarizeConv2d = nn.Conv2d$/;"	v
 BinarizeLinear	models/quant.py	/^class BinarizeLinear(nn.Linear):$/;"	c
@@ -140,7 +140,7 @@ _make_layers	models/vgg.py	/^    def _make_layers(self, cfg):$/;"	m	class:VGG
 _make_layers	models/vgg_binary.py	/^    def _make_layers(self, cfg):$/;"	m	class:VGG_binary
 adjust_optimizer	utils.py	/^def adjust_optimizer(optimizer, epoch, config):$/;"	f
 args	main.py	/^args = parser.parse_args()$/;"	v
-backward	models/quant.py	/^    def backward(self, grad_output):$/;"	m	class:BinarizeAct
+backward	models/quant.py	/^    def backward(ctx, grad_output):$/;"	m	class:BinarizeAct
 begin_time	utils.py	/^begin_time = last_time$/;"	v
 best_acc	main.py	/^    best_acc = checkpoint['acc']$/;"	v
 best_acc	main.py	/^best_acc = 0  # best test accuracy$/;"	v
@@ -149,7 +149,7 @@ cfg	models/mobilenetv2.py	/^    cfg = [(1,  16, 1, 1),$/;"	v	class:MobileNetV2
 cfg	models/vgg.py	/^cfg = {$/;"	v
 cfg	models/vgg_binary.py	/^cfg = {$/;"	v
 checkpoint	main.py	/^    checkpoint = torch.load('.\/checkpoint\/ckpt.pth')$/;"	v
-classes	main.py	/^classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')$/;"	v
+checkpoint	main.py	/^    checkpoint = torch.load(model_path)$/;"	v
 configs	models/shufflenetv2.py	/^configs = {$/;"	v
 criterion	main.py	/^criterion = nn.CrossEntropyLoss()$/;"	v
 densenet_cifar	models/densenet.py	/^def densenet_cifar():$/;"	f
@@ -180,7 +180,7 @@ forward	models/pnasnet.py	/^    def forward(self, x):$/;"	m	class:SepConv
 forward	models/preact_resnet.py	/^    def forward(self, x):$/;"	m	class:PreActBlock
 forward	models/preact_resnet.py	/^    def forward(self, x):$/;"	m	class:PreActBottleneck
 forward	models/preact_resnet.py	/^    def forward(self, x):$/;"	m	class:PreActResNet
-forward	models/quant.py	/^    def forward(self, input):$/;"	m	class:BinarizeAct
+forward	models/quant.py	/^    def forward(ctx, input):$/;"	m	class:BinarizeAct
 forward	models/quant.py	/^    def forward(self, input):$/;"	m	class:BinarizeConv2d
 forward	models/quant.py	/^    def forward(self, input):$/;"	m	class:BinarizeLinear
 forward	models/quant.py	/^    def forward(self, input, target):$/;"	m	class:HingeLoss
@@ -207,17 +207,22 @@ get_mean_and_std	utils.py	/^def get_mean_and_std(dataset):$/;"	f
 hinge_loss	models/quant.py	/^    def hinge_loss(self,input,target):$/;"	m	class:HingeLoss
 init_params	utils.py	/^def init_params(net):$/;"	f
 last_time	utils.py	/^last_time = time.time()$/;"	v
+model	main.py	/^    model = torch.nn.DataParallel(model)$/;"	v
+model	main.py	/^model = model.to(device)$/;"	v
+model	main.py	/^model = model_dict[args.arch]$/;"	v
+model_dict	main.py	/^model_dict = {$/;"	v
+model_path	main.py	/^    model_path = os.path.join('.\/checkpoint', args.evaluate)$/;"	v
 modify_optimizer	utils.py	/^    def modify_optimizer(optimizer, setting):$/;"	f	function:adjust_optimizer
-net	main.py	/^    net = torch.nn.DataParallel(net)$/;"	v
-net	main.py	/^net = VGG_binary('VGG')$/;"	v
-net	main.py	/^net = net.to(device)$/;"	v
 optimizer	main.py	/^    optimizer = adjust_optimizer(optimizer, epoch, regime)$/;"	v
-optimizer	main.py	/^optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)$/;"	v
+optimizer	main.py	/^optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)$/;"	v
 parser	main.py	/^parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')$/;"	v
 progress_bar	utils.py	/^def progress_bar(current, total, msg=None):$/;"	f
-regime	main.py	/^regime = getattr(net, 'regime', {0: {'optimizer': args.optimizer,$/;"	v
+regime	main.py	/^regime = getattr(model, 'regime', {0: {'optimizer': args.optimizer,$/;"	v
 start_epoch	main.py	/^    start_epoch = checkpoint['epoch']$/;"	v
-start_epoch	main.py	/^start_epoch = 0  # start from epoch 0 or last checkpoint epoch$/;"	v
+start_epoch	main.py	/^start_epoch = args.start_epoch$/;"	v
+state_dict_name	main.py	/^        state_dict_name = 'model'$/;"	v
+state_dict_name	main.py	/^        state_dict_name = 'net'$/;"	v
+state_dict_name	main.py	/^        state_dict_name = 'state_dict'$/;"	v
 term_width	utils.py	/^term_width = int(term_width)$/;"	v
 test	main.py	/^def test(epoch):$/;"	f
 test	models/densenet.py	/^def test():$/;"	f
