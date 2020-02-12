@@ -95,7 +95,7 @@ class SGD_binary(torch.optim.SGD):
     Customized SGD optimizer for binary-weight models
     '''
     def __init__(self, params, lr=0.1, momentum=0, dampening=0,
-                 weight_decay=0, nesterov=False, binary=False):
+                 weight_decay=0, nesterov=False, binary=True):
         super(SGD_binary, self).__init__(params=params, lr=lr, momentum=momentum,
                  dampening=dampening, weight_decay=weight_decay, nesterov=nesterov)
         self.binary = binary
@@ -135,7 +135,8 @@ class SGD_binary(torch.optim.SGD):
                     else:
                         d_p = buf
                 # scale d_p with absolute value of p
-                d_p = d_p.mul_(abs(p))
+                if self.binary and hasattr(p, 'org'):
+                    d_p = d_p.mul_((abs(p.data)/torch.max(abs(p.data)))**(0.02))
 
                 p.data.add_(-group['lr'], d_p)
         return loss
