@@ -29,7 +29,6 @@ class VGG_binary(nn.Module):
                 nn.BatchNorm1d(fc),
                 BinarizeActLayer(),
                 BinarizeLinear(fc, 10),
-                nn.BatchNorm1d(10)
                 )
         #self.regime = {
         #        0: {'optimizer': 'Adam', 'betas': (0.9, 0.999),'lr': 5e-2},

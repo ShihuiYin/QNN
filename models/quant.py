@@ -37,11 +37,12 @@ class BinarizeAct(Function):
         return grad_input
 
 class BinarizeActLayer(nn.Module):
-    def __init__(self):
+    def __init__(self, inplace=True):
         super(BinarizeActLayer, self).__init__()
+        self.inplace=inplace
 
     def forward(self, x):
-        return BinarizeAct.apply(nn.functional.hardtanh_(x))
+        return BinarizeAct.apply(nn.functional.hardtanh(x, inplace=self.inplace))
 
 class HingeLoss(nn.Module):
     def __init__(self):
