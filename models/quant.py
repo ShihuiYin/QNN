@@ -92,7 +92,7 @@ class BinarizeLinear(nn.Linear):
     def forward(self, input):
         if not hasattr(self.weight,'org'):
             self.weight.org=self.weight.data.clone()
-        self.weight.data=Binarize(self.weight.org) * torch.std(self.weight.org)
+        self.weight.data=Binarize(self.weight.org) 
         out = nn.functional.linear(input, self.weight)
         if not self.bias is None:
             self.bias.org=self.bias.data.clone()
@@ -126,7 +126,7 @@ class BinarizeConv2d(nn.Conv2d):
     def forward(self, input):
         if not hasattr(self.weight,'org'):
             self.weight.org=self.weight.data.clone()
-        self.weight.data=Binarize(self.weight.org) * torch.std(self.weight.org)
+        self.weight.data=Binarize(self.weight.org)
 
         out = nn.functional.conv2d(input, self.weight, None, self.stride,
                                    self.padding, self.dilation, self.groups)
