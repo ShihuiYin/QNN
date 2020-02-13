@@ -1,7 +1,7 @@
 '''VGG11/13/16/19 in Pytorch.'''
 import torch
 import torch.nn as nn
-from quant import QuantizeConv2d, QuantizeLinear, QuantizeActLayer
+from .quant import QuantizeConv2d, QuantizeLinear, QuantizeActLayer
 
 cfg = {
     'VGG': [128, 128, 'M', 256, 256, 'M', 512, 512, 'M'],
