@@ -64,6 +64,7 @@ model_dict = {
         'VGG_a2_w2': VGG_quant('VGG', 2, 2),
         'VGG_a2_w1': VGG_quant('VGG', 2, 1),
         'VGG_a4_w4': VGG_quant('VGG', 4, 4),
+        'VGG_a8_w8': VGG_quant('VGG', 8, 8),
         'VGG': VGG('VGG'),
         'VGG16': VGG('VGG16')}
 model = model_dict[args.arch]
@@ -197,5 +198,5 @@ for epoch in range(start_epoch, args.epochs):
         print(optimizer)
     train_loss, train_acc = train(epoch)
     test_loss, test_acc = test(epoch)
-    print('Epoch: %d/%d | LR: %.4f | Train Loss: %.3f | Train Acc: %.2f | Test Loss: %.3f | Test Acc: %.2f' %
-            (epoch, args.epochs, optimizer.param_groups[0]['lr'], train_loss, train_acc, test_loss, test_acc))
+    print('Epoch: %d/%d | LR: %.4f | Train Loss: %.3f | Train Acc: %.2f | Test Loss: %.3f | Test Acc: %.2f (%.2f)' %
+            (epoch, args.epochs, optimizer.param_groups[0]['lr'], train_loss, train_acc, test_loss, test_acc, best_acc))
