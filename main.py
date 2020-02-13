@@ -60,6 +60,10 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
 print('==> Building model..')
 model_dict = {
         'VGG_binary': VGG_binary('VGG'),
+        'VGG_a1_w2': VGG_quant('VGG', 1, 2),
+        'VGG_a2_w2': VGG_quant('VGG', 2, 2),
+        'VGG_a2_w1': VGG_quant('VGG', 2, 1),
+        'VGG_a4_w4': VGG_quant('VGG', 4, 4),
         'VGG': VGG('VGG'),
         'VGG16': VGG('VGG16')}
 model = model_dict[args.arch]
@@ -133,8 +137,8 @@ def train(epoch):
         optimizer.step()
         for param in model.parameters():
             if hasattr(param, 'org'):
-                #param.org.copy_(param.data.clamp_(-1,1))
-                param.org.copy_(param.data)
+                param.org.copy_(param.data.clamp_(-1,1))
+                #param.org.copy_(param.data)
 
         train_loss += loss.item()
         _, predicted = outputs.max(1)

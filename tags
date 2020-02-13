@@ -51,6 +51,11 @@ PreActResNet152	models/preact_resnet.py	/^def PreActResNet152():$/;"	f
 PreActResNet18	models/preact_resnet.py	/^def PreActResNet18():$/;"	f
 PreActResNet34	models/preact_resnet.py	/^def PreActResNet34():$/;"	f
 PreActResNet50	models/preact_resnet.py	/^def PreActResNet50():$/;"	f
+Quantize	models/quant.py	/^def Quantize(tensor, n_bits=2):$/;"	f
+QuantizeAct	models/quant.py	/^class QuantizeAct(Function):$/;"	c
+QuantizeActLayer	models/quant.py	/^class QuantizeActLayer(nn.Module):$/;"	c
+QuantizeConv2d	models/quant.py	/^class QuantizeConv2d(nn.Conv2d):$/;"	c
+QuantizeLinear	models/quant.py	/^class QuantizeLinear(nn.Linear):$/;"	c
 ResNeXt	models/resnext.py	/^class ResNeXt(nn.Module):$/;"	c
 ResNeXt29_2x64d	models/resnext.py	/^def ResNeXt29_2x64d():$/;"	f
 ResNeXt29_32x4d	models/resnext.py	/^def ResNeXt29_32x4d():$/;"	f
@@ -64,6 +69,7 @@ ResNet34	models/resnet.py	/^def ResNet34():$/;"	f
 ResNet50	models/resnet.py	/^def ResNet50():$/;"	f
 SENet	models/senet.py	/^class SENet(nn.Module):$/;"	c
 SENet18	models/senet.py	/^def SENet18():$/;"	f
+SGD_binary	utils.py	/^class SGD_binary(torch.optim.SGD):$/;"	c
 SepConv	models/pnasnet.py	/^class SepConv(nn.Module):$/;"	c
 ShuffleBlock	models/shufflenet.py	/^class ShuffleBlock(nn.Module):$/;"	c
 ShuffleBlock	models/shufflenetv2.py	/^class ShuffleBlock(nn.Module):$/;"	c
@@ -76,6 +82,7 @@ TOTAL_BAR_LENGTH	utils.py	/^TOTAL_BAR_LENGTH = 50.$/;"	v
 Transition	models/densenet.py	/^class Transition(nn.Module):$/;"	c
 VGG	models/vgg.py	/^class VGG(nn.Module):$/;"	c
 VGG_binary	models/vgg_binary.py	/^class VGG_binary(nn.Module):$/;"	c
+VGG_quant	models/vgg_quant.py	/^class VGG_quant(nn.Module):$/;"	c
 __init__	models/densenet.py	/^    def __init__(self, block, nblocks, growth_rate=12, reduction=0.5, num_classes=10):$/;"	m	class:DenseNet
 __init__	models/densenet.py	/^    def __init__(self, in_planes, growth_rate):$/;"	m	class:Bottleneck
 __init__	models/densenet.py	/^    def __init__(self, in_planes, out_planes):$/;"	m	class:Transition
@@ -97,10 +104,13 @@ __init__	models/pnasnet.py	/^    def __init__(self, in_planes, out_planes, strid
 __init__	models/preact_resnet.py	/^    def __init__(self, block, num_blocks, num_classes=10):$/;"	m	class:PreActResNet
 __init__	models/preact_resnet.py	/^    def __init__(self, in_planes, planes, stride=1):$/;"	m	class:PreActBlock
 __init__	models/preact_resnet.py	/^    def __init__(self, in_planes, planes, stride=1):$/;"	m	class:PreActBottleneck
-__init__	models/quant.py	/^    def __init__(self):$/;"	m	class:BinarizeActLayer
 __init__	models/quant.py	/^    def __init__(self):$/;"	m	class:HingeLoss
 __init__	models/quant.py	/^    def __init__(self, *kargs, **kwargs):$/;"	m	class:BinarizeConv2d
 __init__	models/quant.py	/^    def __init__(self, *kargs, **kwargs):$/;"	m	class:BinarizeLinear
+__init__	models/quant.py	/^    def __init__(self, *kargs, **kwargs):$/;"	m	class:QuantizeConv2d
+__init__	models/quant.py	/^    def __init__(self, *kargs, **kwargs):$/;"	m	class:QuantizeLinear
+__init__	models/quant.py	/^    def __init__(self, inplace=True):$/;"	m	class:BinarizeActLayer
+__init__	models/quant.py	/^    def __init__(self, n_bits=2, inplace=True):$/;"	m	class:QuantizeActLayer
 __init__	models/resnet.py	/^    def __init__(self, block, num_blocks, num_classes=10):$/;"	m	class:ResNet
 __init__	models/resnet.py	/^    def __init__(self, in_planes, planes, stride=1):$/;"	m	class:BasicBlock
 __init__	models/resnet.py	/^    def __init__(self, in_planes, planes, stride=1):$/;"	m	class:Bottleneck
@@ -119,6 +129,8 @@ __init__	models/shufflenetv2.py	/^    def __init__(self, net_size):$/;"	m	class:
 __init__	models/shufflenetv2.py	/^    def __init__(self, ratio):$/;"	m	class:SplitBlock
 __init__	models/vgg.py	/^    def __init__(self, vgg_name):$/;"	m	class:VGG
 __init__	models/vgg_binary.py	/^    def __init__(self, vgg_name, fc=1024):$/;"	m	class:VGG_binary
+__init__	models/vgg_quant.py	/^    def __init__(self, vgg_name, a_bits=2, w_bits=2, fc=1024):$/;"	m	class:VGG_quant
+__init__	utils.py	/^    def __init__(self, params, lr=0.1, momentum=0, dampening=0,$/;"	m	class:SGD_binary
 __optimizers	utils.py	/^__optimizers = {$/;"	v
 _downsample	models/pnasnet.py	/^    def _downsample(self, planes):$/;"	m	class:PNASNet
 _make_dense_layers	models/densenet.py	/^    def _make_dense_layers(self, block, in_planes, nblock):$/;"	m	class:DenseNet
@@ -135,9 +147,11 @@ _make_layers	models/mobilenet.py	/^    def _make_layers(self, in_planes):$/;"	m	
 _make_layers	models/mobilenetv2.py	/^    def _make_layers(self, in_planes):$/;"	m	class:MobileNetV2
 _make_layers	models/vgg.py	/^    def _make_layers(self, cfg):$/;"	m	class:VGG
 _make_layers	models/vgg_binary.py	/^    def _make_layers(self, cfg):$/;"	m	class:VGG_binary
+_make_layers	models/vgg_quant.py	/^    def _make_layers(self, cfg):$/;"	m	class:VGG_quant
 adjust_optimizer	utils.py	/^def adjust_optimizer(optimizer, epoch, config):$/;"	f
 args	main.py	/^args = parser.parse_args()$/;"	v
 backward	models/quant.py	/^    def backward(ctx, grad_output):$/;"	m	class:BinarizeAct
+backward	models/quant.py	/^    def backward(ctx, grad_output):$/;"	m	class:QuantizeAct
 begin_time	utils.py	/^begin_time = last_time$/;"	v
 best_acc	main.py	/^    best_acc = checkpoint['acc']$/;"	v
 best_acc	main.py	/^best_acc = 0  # best test accuracy$/;"	v
@@ -145,6 +159,7 @@ cfg	models/mobilenet.py	/^    cfg = [64, (128,2), 128, (256,2), 256, (512,2), 51
 cfg	models/mobilenetv2.py	/^    cfg = [(1,  16, 1, 1),$/;"	v	class:MobileNetV2
 cfg	models/vgg.py	/^cfg = {$/;"	v
 cfg	models/vgg_binary.py	/^cfg = {$/;"	v
+cfg	models/vgg_quant.py	/^cfg = {$/;"	v
 checkpoint	main.py	/^    checkpoint = torch.load('.\/checkpoint\/ckpt.pth')$/;"	v
 checkpoint	main.py	/^    checkpoint = torch.load(model_path)$/;"	v
 configs	models/shufflenetv2.py	/^configs = {$/;"	v
@@ -178,10 +193,14 @@ forward	models/preact_resnet.py	/^    def forward(self, x):$/;"	m	class:PreActBl
 forward	models/preact_resnet.py	/^    def forward(self, x):$/;"	m	class:PreActBottleneck
 forward	models/preact_resnet.py	/^    def forward(self, x):$/;"	m	class:PreActResNet
 forward	models/quant.py	/^    def forward(ctx, input):$/;"	m	class:BinarizeAct
+forward	models/quant.py	/^    def forward(ctx, input, n_bits=2):$/;"	m	class:QuantizeAct
 forward	models/quant.py	/^    def forward(self, input):$/;"	m	class:BinarizeConv2d
 forward	models/quant.py	/^    def forward(self, input):$/;"	m	class:BinarizeLinear
+forward	models/quant.py	/^    def forward(self, input):$/;"	m	class:QuantizeConv2d
+forward	models/quant.py	/^    def forward(self, input):$/;"	m	class:QuantizeLinear
 forward	models/quant.py	/^    def forward(self, input, target):$/;"	m	class:HingeLoss
 forward	models/quant.py	/^    def forward(self, x):$/;"	m	class:BinarizeActLayer
+forward	models/quant.py	/^    def forward(self, x):$/;"	m	class:QuantizeActLayer
 forward	models/resnet.py	/^    def forward(self, x):$/;"	m	class:BasicBlock
 forward	models/resnet.py	/^    def forward(self, x):$/;"	m	class:Bottleneck
 forward	models/resnet.py	/^    def forward(self, x):$/;"	m	class:ResNet
@@ -200,6 +219,7 @@ forward	models/shufflenetv2.py	/^    def forward(self, x):$/;"	m	class:ShuffleNe
 forward	models/shufflenetv2.py	/^    def forward(self, x):$/;"	m	class:SplitBlock
 forward	models/vgg.py	/^    def forward(self, x):$/;"	m	class:VGG
 forward	models/vgg_binary.py	/^    def forward(self, x):$/;"	m	class:VGG_binary
+forward	models/vgg_quant.py	/^    def forward(self, x):$/;"	m	class:VGG_quant
 get_mean_and_std	utils.py	/^def get_mean_and_std(dataset):$/;"	f
 hinge_loss	models/quant.py	/^    def hinge_loss(self,input,target):$/;"	m	class:HingeLoss
 init_params	utils.py	/^def init_params(net):$/;"	f
@@ -220,6 +240,7 @@ start_epoch	main.py	/^start_epoch = args.start_epoch$/;"	v
 state_dict_name	main.py	/^        state_dict_name = 'model'$/;"	v
 state_dict_name	main.py	/^        state_dict_name = 'net'$/;"	v
 state_dict_name	main.py	/^        state_dict_name = 'state_dict'$/;"	v
+step	utils.py	/^    def step(self, closure=None):$/;"	m	class:SGD_binary
 term_width	utils.py	/^term_width = int(term_width)$/;"	v
 test	main.py	/^def test(epoch):$/;"	f
 test	models/densenet.py	/^def test():$/;"	f
@@ -236,10 +257,15 @@ test	models/shufflenet.py	/^def test():$/;"	f
 test	models/shufflenetv2.py	/^def test():$/;"	f
 test	models/vgg.py	/^def test():$/;"	f
 test	models/vgg_binary.py	/^def test():$/;"	f
+test	models/vgg_quant.py	/^def test():$/;"	f
+test_acc	main.py	/^test_acc = 0$/;"	v
+test_loss	main.py	/^test_loss = 0$/;"	v
 test_resnext	models/resnext.py	/^def test_resnext():$/;"	f
 testloader	main.py	/^testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=1)$/;"	v
 testset	main.py	/^testset = torchvision.datasets.CIFAR10(root='.\/data', train=False, download=True, transform=transform_test)$/;"	v
 train	main.py	/^def train(epoch):$/;"	f
+train_acc	main.py	/^train_acc = 0$/;"	v
+train_loss	main.py	/^train_loss = 0$/;"	v
 trainloader	main.py	/^trainloader = torch.utils.data.DataLoader(trainset, batch_size=100, shuffle=True, num_workers=1)$/;"	v
 trainset	main.py	/^trainset = torchvision.datasets.CIFAR10(root='.\/data', train=True, download=True, transform=transform_train)$/;"	v
 transform_test	main.py	/^transform_test = transforms.Compose([$/;"	v

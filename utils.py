@@ -134,9 +134,9 @@ class SGD_binary(torch.optim.SGD):
                         d_p = d_p.add(momentum, buf)
                     else:
                         d_p = buf
-                # scale d_p with absolute value of p
-                if self.binary and hasattr(p, 'org'):
-                    d_p = d_p.mul_((abs(p.data)/torch.max(abs(p.data)))**(0.02))
+                # scale d_p with p.lr_scale
+                if self.binary and hasattr(p, 'lr_scale'):
+                    d_p = d_p.mul_(p.lr_scale)
 
                 p.data.add_(-group['lr'], d_p)
         return loss
