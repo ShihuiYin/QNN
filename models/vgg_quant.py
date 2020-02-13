@@ -1,10 +1,7 @@
 '''VGG11/13/16/19 in Pytorch.'''
 import torch
 import torch.nn as nn
-from quant import BinarizeConv2d, BinarizeLinear, BinarizeActLayer
-#BinarizeConv2d = nn.Conv2d
-#BinarizeLinear = nn.Linear
-#BinarizeActLayer = nn.Hardtanh
+from quant import QuantizeConv2d, QuantizeLinear, QuantizeActLayer
 
 cfg = {
     'VGG': [128, 128, 'M', 256, 256, 'M', 512, 512, 'M'],
@@ -15,20 +12,22 @@ cfg = {
 }
 
 
-class VGG_binary(nn.Module):
-    def __init__(self, vgg_name, fc=1024):
-        super(VGG_binary, self).__init__()
+class VGG_quant(nn.Module):
+    def __init__(self, vgg_name, a_bits=2, w_bits=2, fc=1024):
+        super(VGG_quant, self).__init__()
+        self.a_bits = a_bits
+        self.w_bits = w_bits
         self.features = self._make_layers(cfg[vgg_name])
         num_maxpooling_layers = cfg[vgg_name].count('M')
         last_conv_layer_output_dim = 512 * (4 ** (5 - num_maxpooling_layers))
         self.classifier = nn.Sequential(
-                BinarizeLinear(last_conv_layer_output_dim, fc),
+                QuantizeLinear(last_conv_layer_output_dim, fc, n_bits=w_bits),
                 nn.BatchNorm1d(fc),
-                BinarizeActLayer(),
-                BinarizeLinear(fc, fc),
+                QuantizeActLayer(n_bits=a_bits),
+                QuantizeLinear(fc, fc, n_bits=w_bits),
                 nn.BatchNorm1d(fc),
-                BinarizeActLayer(),
-                BinarizeLinear(fc, 10),
+                QuantizeActLayer(n_bits=a_bits),
+                QuantizeLinear(fc, 10, n_bits=w_bits),
                 )
         #self.regime = {
         #        0: {'optimizer': 'Adam', 'betas': (0.9, 0.999),'lr': 5e-2},
@@ -50,18 +49,18 @@ class VGG_binary(nn.Module):
         in_channels = 3
         for x in cfg:
             if in_channels == 3:
-                layers += [BinarizeConv2d(in_channels, x, kernel_size=3, padding=1)]
+                layers += [QuantizeConv2d(in_channels, x, kernel_size=3, padding=1, n_bits=self.w_bits)]
                 layers += [nn.BatchNorm2d(x)]
                 in_channels = x
             else:
                 if x == 'M':
                     layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
                 else:
-                    layers += [BinarizeActLayer()]
-                    layers += [BinarizeConv2d(in_channels, x, kernel_size=3, padding=1),
+                    layers += [QuantizeActLayer(n_bits=self.a_bits)]
+                    layers += [QuantizeConv2d(in_channels, x, kernel_size=3, padding=1, n_bits=self.w_bits),
                                nn.BatchNorm2d(x)]
                     in_channels = x
-        layers += [BinarizeActLayer()]
+        layers += [QuantizeActLayer(n_bits=self.a_bits)]
         return nn.Sequential(*layers)
 
 

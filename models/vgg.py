@@ -4,6 +4,7 @@ import torch.nn as nn
 
 
 cfg = {
+    'VGG': [128, 128, 'M', 256, 256, 'M', 512, 512, 'M'],
     'VGG11': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'VGG13': [64, 64, 'M', 128, 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'VGG16': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M'],
@@ -15,7 +16,16 @@ class VGG(nn.Module):
     def __init__(self, vgg_name):
         super(VGG, self).__init__()
         self.features = self._make_layers(cfg[vgg_name])
-        self.classifier = nn.Linear(512, 10)
+        if vgg_name == 'VGG':
+            self.classifier = nn.Sequential(nn.Linear(8192, 1024),
+                                            nn.BatchNorm1d(1024),
+                                            nn.ReLU(inplace=True),
+                                            nn.Linear(1024,1024),
+                                            nn.BatchNorm1d(1024),
+                                            nn.ReLU(inplace=True),
+                                            nn.Linear(1024,10))
+        else:
+            self.classifier = nn.Linear(512, 10)
 
     def forward(self, x):
         out = self.features(x)
