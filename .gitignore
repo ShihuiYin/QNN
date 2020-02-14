@@ -2,5 +2,6 @@
 *.pyc
 checkpoint/
 data/
+log/
 *.swp
 */*.swp
