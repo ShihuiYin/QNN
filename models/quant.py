@@ -25,10 +25,9 @@ def Binarize(tensor):
     return tensor.sign()
 
 def Quantize(tensor, n_bits=2):
-    #tensor.clamp_(-1., 1.)
     if n_bits == 1:
         return tensor.sign()
-    tensor=torch.round((tensor+1.) * (2**n_bits - 1) / 2.) * 2 / (2**n_bits - 1) - 1.
+    tensor=torch.round((torch.clamp(tensor, -1., 1.)+1.) * (2**n_bits - 1) / 2.) * 2 / (2**n_bits - 1) - 1.
     return tensor
 
 class BinarizeAct(Function):

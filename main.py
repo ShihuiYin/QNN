@@ -107,7 +107,6 @@ if args.evaluate:
     else:
         state_dict_name = 'state_dict'
     model.load_state_dict(checkpoint[state_dict_name])
-    import pdb; pdb.set_trace()
     args.save = None
 elif args.resume:
     # Load checkpoint.
