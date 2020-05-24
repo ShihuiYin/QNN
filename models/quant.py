@@ -69,6 +69,10 @@ class QuantizeActLayer(nn.Module):
     def forward(self, x):
         return QuantizeAct.apply(nn.functional.hardtanh(x, inplace=self.inplace), self.n_bits)
 
+    def extra_repr(self):
+        return super(QuantizeActLayer, self).extra_repr() + 'n_bits={}'.format(self.n_bits)
+
+
 class HingeLoss(nn.Module):
     def __init__(self):
         super(HingeLoss,self).__init__()
@@ -114,8 +118,10 @@ class QuantizeLinear(nn.Linear):
         if not self.bias is None:
             self.bias.org=self.bias.data.clone()
             out += self.bias.view(1, -1).expand_as(out)
-
         return out
+
+    def extra_repr(self):
+        return super(QuantizeLinear, self).extra_repr() + ', n_bits={}'.format(self.n_bits)
 
 class BinarizeConv2d(nn.Conv2d):
 
@@ -157,3 +163,6 @@ class QuantizeConv2d(nn.Conv2d):
             out += self.bias.view(1, -1, 1, 1).expand_as(out)
 
         return out
+
+    def extra_repr(self):
+        return super(QuantizeConv2d, self).extra_repr() + ', n_bits={}'.format(self.n_bits)

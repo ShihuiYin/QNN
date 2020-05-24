@@ -18,7 +18,7 @@ from utils import progress_bar, adjust_optimizer
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--epochs', default=350, type=int, help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, help='manual epoch number')
-parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
+parser.add_argument('--lr', default=0.05, type=float, help='learning rate')
 parser.add_argument('--resume', action='store_true', help='resume from checkpoint')
 parser.add_argument('--optimizer', default='SGD', type=str, help='optimizer function used')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
@@ -26,6 +26,7 @@ parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float, help='we
 parser.add_argument('--evaluate', type=str, help='evaluate model FILE on validation set')
 parser.add_argument('--save', type=str, help='path to save model')
 parser.add_argument('--arch', type=str, default='VGG', help='model architecture')
+parser.add_argument('--lr_final', type=float, default=-1, help='if positive, exponential lr schedule')
 args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -60,9 +61,22 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
 print('==> Building model..')
 model_dict = {
         'VGG_binary': VGG_binary('VGG'),
+        'VGG_a1_w1': VGG_quant('VGG', 1, 1),
         'VGG_a1_w2': VGG_quant('VGG', 1, 2),
         'VGG_a2_w2': VGG_quant('VGG', 2, 2),
         'VGG_a2_w1': VGG_quant('VGG', 2, 1),
+        'VGGS_a1_w1': VGG_quant('VGGS', 1, 1, 256),
+        'VGGS_a1_w2': VGG_quant('VGGS', 1, 2, 256),
+        'VGGS_a2_w2': VGG_quant('VGGS', 2, 2, 256),
+        'VGGS_a2_w1': VGG_quant('VGGS', 2, 1, 256),
+        'VGGT_a1_w1': VGG_quant('VGGT', 1, 1, 256),
+        'VGGT_a1_w2': VGG_quant('VGGT', 1, 2, 256),
+        'VGGT_a2_w2': VGG_quant('VGGT', 2, 2, 256),
+        'VGGT_a2_w1': VGG_quant('VGGT', 2, 1, 256),
+        'VGGD_a1_w1': VGG_quant('VGGD', 1, 1, 1024),
+        'VGGD_a1_w2': VGG_quant('VGGD', 1, 2, 1024),
+        'VGGD_a2_w2': VGG_quant('VGGD', 2, 2, 1024),
+        'VGGD_a2_w1': VGG_quant('VGGD', 2, 1, 1024),
         'VGG_a4_w4': VGG_quant('VGG', 4, 4),
         'VGG_a8_w8': VGG_quant('VGG', 8, 8),
         'VGG': VGG('VGG'),
@@ -89,7 +103,18 @@ regime = getattr(model, 'regime', {0: {'optimizer': args.optimizer,
                                      'momentum': args.momentum,
                                      'weight_decay': args.weight_decay},
                                  150: {'lr': args.lr / 10.},
-                                 250: {'lr': args.lr / 100.}})
+                                 250: {'lr': args.lr / 100.},
+                                 350: {'lr': args.lr / 1000.}})
+
+# update regime if exponential learning rate activated
+if not hasattr(model, 'regime'):
+    if args.lr_final > 0:
+        decay_factor = (args.lr_final / args.lr) ** (1/ (args.epochs - 1.))
+        lr = args.lr
+        for e in range(1, args.epochs):
+            regime[e] = {'lr': lr * decay_factor}
+            lr *= decay_factor
+
 model = model.to(device)
 if device == 'cuda':
     model = torch.nn.DataParallel(model)

@@ -5,6 +5,9 @@ from .quant import QuantizeConv2d, QuantizeLinear, QuantizeActLayer
 
 cfg = {
     'VGG': [128, 128, 'M', 256, 256, 'M', 512, 512, 'M'],
+    'VGGS': [128, 128, 'M', 256, 256, 'M', 256, 256, 'M'],
+    'VGGT': [128, 128, 'M', 128, 256, 'M', 256, 256, 'M'],
+    'VGGD': [128, 128, 'M', 256, 256, 'M', 512, 512, 'M'],
     'VGG11': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'VGG13': [64, 64, 'M', 128, 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'VGG16': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M'],
@@ -19,7 +22,12 @@ class VGG_quant(nn.Module):
         self.w_bits = w_bits
         self.features = self._make_layers(cfg[vgg_name])
         num_maxpooling_layers = cfg[vgg_name].count('M')
-        last_conv_layer_output_dim = 512 * (4 ** (5 - num_maxpooling_layers))
+        if 'S' in vgg_name or 'T' in vgg_name:
+            last_conv_layer_output_dim = 256 * (4 ** (5 - num_maxpooling_layers))
+        elif 'D' in vgg_name:
+            last_conv_layer_output_dim = 512 * (4 ** (5 - num_maxpooling_layers))
+        else:
+            last_conv_layer_output_dim = 512 * (4 ** (5 - num_maxpooling_layers))
         self.classifier = nn.Sequential(
                 QuantizeLinear(last_conv_layer_output_dim, fc, n_bits=w_bits),
                 nn.BatchNorm1d(fc),
