@@ -21,28 +21,29 @@ from torch.autograd import Function
 import math
 
 
-def Binarize(tensor):
-    return tensor.sign()
-
 def Quantize(tensor, n_bits=2):
     if n_bits == 1:
         return tensor.sign()
     tensor=torch.round((torch.clamp(tensor, -1., 1.)+1.) * (2**n_bits - 1) / 2.) * 2 / (2**n_bits - 1) - 1.
     return tensor
 
-class BinarizeAct(Function):
+class Quantize_STE_clipped(Function):
     @staticmethod
-    def forward(ctx, input):
-        #ctx.save_for_backward(input)
-        return torch.sign(input)
+    def forward(ctx, input, n_bits=2):
+        ctx.save_for_backward(input)
+        return Quantize(input, n_bits)
 
     @staticmethod
     def backward(ctx, grad_output):
-        #input, = ctx.saved_tensors
+        input, = ctx.saved_tensors
         grad_input = grad_output.clone()
-        return grad_input
+        grad_input[abs(input) > 1] = 0
+        return grad_input, None
 
-class QuantizeAct(Function):
+class Quantize_STE_identity(Function):
+    '''
+    Currently, it's basically the same with QuantizeAct function
+    '''
     @staticmethod
     def forward(ctx, input, n_bits=2):
         return Quantize(input, n_bits)
@@ -52,14 +53,9 @@ class QuantizeAct(Function):
         grad_input = grad_output.clone()
         return grad_input, None
 
-class BinarizeActLayer(nn.Module):
-    def __init__(self, inplace=True):
-        super(BinarizeActLayer, self).__init__()
-        self.inplace = inplace
-
-    def forward(self, x):
-        return BinarizeAct.apply(nn.functional.hardtanh(x, inplace=self.inplace))
-
+QuantizeAct = Quantize_STE_clipped
+QuantizeWeight = Quantize_STE_identity
+    
 class QuantizeActLayer(nn.Module):
     def __init__(self, n_bits=2, inplace=True):
         super(QuantizeActLayer, self).__init__()
@@ -72,37 +68,6 @@ class QuantizeActLayer(nn.Module):
     def extra_repr(self):
         return super(QuantizeActLayer, self).extra_repr() + 'n_bits={}'.format(self.n_bits)
 
-
-class HingeLoss(nn.Module):
-    def __init__(self):
-        super(HingeLoss,self).__init__()
-        self.margin=1.0
-
-    def hinge_loss(self,input,target):
-            output=self.margin-input.mul(target)
-            output[output.le(0)]=0
-            return output.mean()
-
-    def forward(self, input, target):
-        return self.hinge_loss(input,target)
-
-
-class BinarizeLinear(nn.Linear):
-
-    def __init__(self, *kargs, **kwargs):
-        super(BinarizeLinear, self).__init__(*kargs, **kwargs)
-
-    def forward(self, input):
-        if not hasattr(self.weight,'org'):
-            self.weight.org=self.weight.data.clone()
-        self.weight.data=Binarize(self.weight.org)
-        out = nn.functional.linear(input, self.weight)
-        if not self.bias is None:
-            self.bias.org=self.bias.data.clone()
-            out += self.bias.view(1, -1).expand_as(out)
-
-        return out
-
 class QuantizeLinear(nn.Linear):
 
     def __init__(self, *kargs, **kwargs):
@@ -111,10 +76,7 @@ class QuantizeLinear(nn.Linear):
         super(QuantizeLinear, self).__init__(*kargs, **kwargs)
 
     def forward(self, input):
-        if not hasattr(self.weight,'org'):
-            self.weight.org=self.weight.data.clone()
-        self.weight.data=Quantize(self.weight.org, self.n_bits)
-        out = nn.functional.linear(input, self.weight)
+        out = nn.functional.linear(input, QuantizeWeight.apply(self.weight, self.n_bits))
         if not self.bias is None:
             self.bias.org=self.bias.data.clone()
             out += self.bias.view(1, -1).expand_as(out)
@@ -122,26 +84,6 @@ class QuantizeLinear(nn.Linear):
 
     def extra_repr(self):
         return super(QuantizeLinear, self).extra_repr() + ', n_bits={}'.format(self.n_bits)
-
-class BinarizeConv2d(nn.Conv2d):
-
-    def __init__(self, *kargs, **kwargs):
-        super(BinarizeConv2d, self).__init__(*kargs, **kwargs)
-        self.H = nn.Parameter(abs(self.weight.data).mean())
-
-    def forward(self, input):
-        if not hasattr(self.weight,'org'):
-            self.weight.org=self.weight.data.clone()
-        self.weight.data=Binarize(self.weight.org)
-
-        out = nn.functional.conv2d(input, self.weight, None, self.stride,
-                                   self.padding, self.dilation, self.groups)
-
-        if not self.bias is None:
-            self.bias.org=self.bias.data.clone()
-            out += self.bias.view(1, -1, 1, 1).expand_as(out)
-
-        return out
 
 class QuantizeConv2d(nn.Conv2d):
 
@@ -151,12 +93,8 @@ class QuantizeConv2d(nn.Conv2d):
         super(QuantizeConv2d, self).__init__(*kargs, **kwargs)
 
     def forward(self, input):
-        if not hasattr(self.weight,'org'):
-            self.weight.org=self.weight.data.clone()
-        self.weight.data=Quantize(self.weight.org, self.n_bits)
-
-        out = nn.functional.conv2d(input, self.weight, None, self.stride,
-                                   self.padding, self.dilation, self.groups)
+        out = nn.functional.conv2d(input, QuantizeWeight.apply(self.weight, self.n_bits), 
+                None, self.stride, self.padding, self.dilation, self.groups)
 
         if not self.bias is None:
             self.bias.org=self.bias.data.clone()
