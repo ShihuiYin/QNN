@@ -1,25 +1,6 @@
-# Copyright 2020   Shihui Yin    Arizona State University
-
-# Licensed under the Apache License, Version 2.0 (the "License")
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#  http://www.apache.org/licenses/LICENSE-2.0
-#
-# THIS CODE IS PROVIDED *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
-# WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
-# MERCHANTABLITY OR NON-INFRINGEMENT.
-# See the Apache 2 License for the specific language governing permissions and
-# limitations under the License.
-
-# Description: functions for weight/activation quantization and input splitting
-# Created on 02/09/2020
 import torch
 import torch.nn as nn
 from torch.autograd import Function
-import math
-
 
 def Quantize(tensor, n_bits=2):
     if n_bits == 1:
@@ -41,9 +22,6 @@ class Quantize_STE_clipped(Function):
         return grad_input, None
 
 class Quantize_STE_identity(Function):
-    '''
-    Currently, it's basically the same with QuantizeAct function
-    '''
     @staticmethod
     def forward(ctx, input, n_bits=2):
         return Quantize(input, n_bits)
@@ -54,7 +32,7 @@ class Quantize_STE_identity(Function):
         return grad_input, None
 
 QuantizeAct = Quantize_STE_clipped
-QuantizeWeight = Quantize_STE_identity
+QuantizeWeight = Quantize_STE_clipped
     
 class QuantizeActLayer(nn.Module):
     def __init__(self, n_bits=2, inplace=True):
@@ -78,7 +56,6 @@ class QuantizeLinear(nn.Linear):
     def forward(self, input):
         out = nn.functional.linear(input, QuantizeWeight.apply(self.weight, self.n_bits))
         if not self.bias is None:
-            self.bias.org=self.bias.data.clone()
             out += self.bias.view(1, -1).expand_as(out)
         return out
 
@@ -97,7 +74,6 @@ class QuantizeConv2d(nn.Conv2d):
                 None, self.stride, self.padding, self.dilation, self.groups)
 
         if not self.bias is None:
-            self.bias.org=self.bias.data.clone()
             out += self.bias.view(1, -1, 1, 1).expand_as(out)
 
         return out
