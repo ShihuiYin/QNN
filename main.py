@@ -61,25 +61,18 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
 print('==> Building model..')
 model_dict = {
         'VGG_a1_w1': VGG_quant('VGG', 1, 1),
-        'VGG_a1_w2': VGG_quant('VGG', 1, 2),
-        'VGG_a2_w2': VGG_quant('VGG', 2, 2),
         'VGG_a2_w1': VGG_quant('VGG', 2, 1),
-        'VGGS_a1_w1': VGG_quant('VGGS', 1, 1, 256),
-        'VGGS_a1_w2': VGG_quant('VGGS', 1, 2, 256),
-        'VGGS_a2_w2': VGG_quant('VGGS', 2, 2, 256),
-        'VGGS_a2_w1': VGG_quant('VGGS', 2, 1, 256),
+        'VGG_a2_w2': VGG_quant('VGG', 2, 2),
         'VGGT_a1_w1': VGG_quant('VGGT', 1, 1, 256),
-        'VGGT_a1_w2': VGG_quant('VGGT', 1, 2, 256),
         'VGGT_a2_w2': VGG_quant('VGGT', 2, 2, 256),
         'VGGT_a2_w1': VGG_quant('VGGT', 2, 1, 256),
-        'VGGD_a1_w1': VGG_quant('VGGD', 1, 1, 1024),
-        'VGGD_a1_w2': VGG_quant('VGGD', 1, 2, 1024),
-        'VGGD_a2_w2': VGG_quant('VGGD', 2, 2, 1024),
-        'VGGD_a2_w1': VGG_quant('VGGD', 2, 1, 1024),
-        'VGG_a4_w4': VGG_quant('VGG', 4, 4),
-        'VGG_a8_w8': VGG_quant('VGG', 8, 8),
         'VGG': VGG('VGG'),
-        'VGG16': VGG('VGG16')}
+        'VGG16': VGG('VGG16'),
+        'ResNet18_a1_w1': ResNet18_quant(1, 1., 1, 1.),
+        'ResNet18_a2_w1': ResNet18_quant(1, 1., 2, 1.),
+        'ResNet18_a4_w4': ResNet18_quant(4, 1., 4, 1.),
+        'ResNet18': ResNet18()
+        }
 model = model_dict[args.arch]
 #model = VGG_binary('VGG')
 #model = VGG('VGG16')
@@ -120,7 +113,7 @@ if device == 'cuda':
     cudnn.benchmark = True
 
 if args.evaluate:
-    model_path = os.path.join('./checkpoint', args.evaluate)
+    model_path = args.evaluate
     if not os.path.isfile(model_path):
         parser.error('invalid checkpoint: {}'.format(model_path))
     checkpoint = torch.load(model_path)
