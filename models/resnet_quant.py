@@ -19,10 +19,11 @@ class BasicBlock_quant(nn.Module):
         self.conv1 = QuantizeConv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False,
                 n_bits=w_bits, H=w_H)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.quant_act = QuantizeActLayer(n_bits=a_bits, H=a_H)
+        self.quant_act1 = QuantizeActLayer(n_bits=a_bits, H=a_H)
         self.conv2 = QuantizeConv2d(planes, planes*self.expansion, kernel_size=3, stride=1, padding=1, bias=False,
                 n_bits=w_bits, H=w_H)
         self.bn2 = nn.BatchNorm2d(planes*self.expansion)
+        self.quant_act2 = QuantizeActLayer(n_bits=a_bits, H=a_H)
 
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != self.expansion*planes:
@@ -34,10 +35,10 @@ class BasicBlock_quant(nn.Module):
             )
 
     def forward(self, x):
-        out = self.quant_act(self.bn1(self.conv1(x)))
+        out = self.quant_act1(self.bn1(self.conv1(x)))
         out = self.conv2(out)
         out += self.shortcut(x)
-        out = self.quant_act(self.bn2(out))
+        out = self.quant_act2(self.bn2(out))
         return out
 
 
