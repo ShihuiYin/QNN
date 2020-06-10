@@ -93,9 +93,7 @@ if args.evaluate is None:
     print(model)
 
 regime = getattr(model, 'regime', {0: {'optimizer': args.optimizer,
-                                     'lr': args.lr,
-                                     'momentum': args.momentum,
-                                     'weight_decay': args.weight_decay},
+                                     'lr': args.lr},
                                  150: {'lr': args.lr / 10.},
                                  250: {'lr': args.lr / 100.},
                                  350: {'lr': args.lr / 1000.}})
@@ -138,7 +136,21 @@ elif args.resume:
     start_epoch = checkpoint['epoch']
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+def H_parameters(model):
+    for name, param in model.named_parameters():
+        if '.H' in name:
+            yield param
+
+def non_H_parameters(model):
+    for name, param in model.named_parameters():
+        if '.H' not in name:
+            yield param
+
+#optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+optimizer = optim.SGD([ {'params': non_H_parameters(model)}, 
+                        {'params': H_parameters(model), 
+                         'weight_decay': 0}
+                      ], lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
 # Training
 def train(epoch):
