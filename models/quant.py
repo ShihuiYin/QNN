@@ -5,7 +5,10 @@ from torch.autograd import Function
 def Quantize(tensor, H=1., n_bits=2):
     if n_bits == 1:
         return tensor.sign() * H
-    tensor=torch.round((torch.clamp(tensor, -H, H)+H) * (2**n_bits - 1) / (2*H)) * 2*H / (2**n_bits - 1) - H
+    if isinstance(H, torch.nn.Parameter):
+        tensor=torch.round((torch.clamp(tensor, -H.data, H.data)+H.data) * (2**n_bits - 1) / (2*H.data)) * 2*H.data / (2**n_bits - 1) - H.data
+    else:
+        tensor=torch.round((torch.clamp(tensor, -H, H)+H) * (2**n_bits - 1) / (2*H)) * 2*H / (2**n_bits - 1) - H
     return tensor
 
 class Quantize_STE_clipped(Function):
