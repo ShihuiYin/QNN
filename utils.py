@@ -11,6 +11,18 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.init as init
+from models.quant import QuantizeLinear, QuantizeConv2d, QuantizeActLayer
+
+def get_loss_for_H(model, weight_decay=1e-4):
+    loss = 0
+    for m in model.modules():
+        if isinstance(m, QuantizeLinear) or isinstance(m, QuantizeConv2d):
+            loss += -1e-5 * torch.log(m.H)
+            #loss += -1/2 * weight_decay * (m.H ** 2)
+        #elif isinstance(m, QuantizeActLayer):
+        #    loss += -1e-5 * torch.log(m.H)
+            #loss += -1/2 * weight_decay * (m.H ** 2)
+    return loss
 
 
 def get_mean_and_std(dataset):

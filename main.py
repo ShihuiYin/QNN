@@ -12,7 +12,7 @@ import os
 import argparse
 
 from models import *
-from utils import progress_bar, adjust_optimizer
+from utils import progress_bar, adjust_optimizer, get_loss_for_H
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
@@ -70,6 +70,7 @@ model_dict = {
         'VGG16': VGG('VGG16'),
         'ResNet18_a1_w1': ResNet18_quant(1, 1., 1, 1.),
         'ResNet18_a2_w1': ResNet18_quant(1, 1., 2, 1.),
+        'ResNet18_a4_w1': ResNet18_quant(1, 1., 4, 1.),
         'ResNet18_a4_w4': ResNet18_quant(4, 1., 4, 1.),
         'ResNet18': ResNet18()
         }
@@ -88,7 +89,8 @@ model = model_dict[args.arch]
 # model = SENet18()
 # model = ShuffleNetV2(1)
 # model = EfficientNetB0()
-print(model)
+if args.evaluate is None:
+    print(model)
 
 regime = getattr(model, 'regime', {0: {'optimizer': args.optimizer,
                                      'lr': args.lr,
@@ -123,7 +125,8 @@ if args.evaluate:
         state_dict_name = 'model'
     else:
         state_dict_name = 'state_dict'
-    model.load_state_dict(checkpoint[state_dict_name])
+    model.load_state_dict(checkpoint[state_dict_name], strict=False)
+    print(model)
     args.save = None
 elif args.resume:
     # Load checkpoint.
@@ -135,7 +138,7 @@ elif args.resume:
     start_epoch = checkpoint['epoch']
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
+optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
 # Training
 def train(epoch):
@@ -148,6 +151,8 @@ def train(epoch):
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = criterion(outputs, targets)
+        # add negative log loss for H's
+        #loss += get_loss_for_H(model, args.weight_decay)
         loss.backward()
         optimizer.step()
         train_loss += loss.item()
@@ -185,16 +190,18 @@ def test(epoch):
     test_acc = 100.*correct/total
     test_loss = test_loss/batch_idx
     acc = 100.*correct/total
+    state = {
+        'model': model.state_dict(),
+        'acc': acc,
+        'epoch': epoch,
+    }
+    if not os.path.isdir('checkpoint'):
+        os.mkdir('checkpoint')
     if acc > best_acc and args.save:
-        state = {
-            'model': model.state_dict(),
-            'acc': acc,
-            'epoch': epoch,
-        }
-        if not os.path.isdir('checkpoint'):
-            os.mkdir('checkpoint')
         torch.save(state, os.path.join('./checkpoint/', args.save))
         best_acc = acc
+    if args.save:
+        torch.save(state, os.path.join('./checkpoint/', 'model.pth'))
     return test_loss, test_acc
 
 if args.evaluate:
@@ -208,4 +215,4 @@ for epoch in range(start_epoch, args.epochs):
     train_loss, train_acc = train(epoch)
     test_loss, test_acc = test(epoch)
     print('Epoch: %d/%d | LR: %.4f | Train Loss: %.3f | Train Acc: %.2f | Test Loss: %.3f | Test Acc: %.2f (%.2f)' %
-            (epoch, args.epochs, optimizer.param_groups[0]['lr'], train_loss, train_acc, test_loss, test_acc, best_acc))
+            (epoch+1, args.epochs, optimizer.param_groups[0]['lr'], train_loss, train_acc, test_loss, test_acc, best_acc))
