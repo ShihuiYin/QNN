@@ -90,11 +90,11 @@ class ResNet_quant(nn.Module):
         self.quant_act2 = QuantizeActLayer(n_bits=a_bits, H=a_H)
         self.linear = QuantizeLinear(512*block.expansion, num_classes, n_bits=w_bits, H=w_H)
 
-    def _make_layer(self, block, planes, num_blocks, stride, w_bits=1, w_H=1., a_bits=1, a_H=1.):
+    def _make_layer(self, block, planes, num_blocks, stride, w_bits=1, w_H=1., a_bits=1, a_H=1., quant_output=True):
         strides = [stride] + [1]*(num_blocks-1)
         layers = []
         for stride in strides:
-            layers.append(block(self.in_planes, planes, stride, w_bits, w_H, a_bits, a_H))
+            layers.append(block(self.in_planes, planes, stride, w_bits, w_H, a_bits, a_H, quant_output))
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
