@@ -68,7 +68,7 @@ model_dict = {
         'VGGT_a2_w1': VGG_quant('VGGT', 2, 1, 256),
         'VGG': VGG('VGG'),
         'VGG16': VGG('VGG16'),
-        'ResNet18_a1_w1': ResNet18_quant(1, 1., 1, 1.),
+        'ResNet18_a1_w1': ResNet18_quant(1, 1., 1, 0.5),
         'ResNet18_a2_w1': ResNet18_quant(1, 1., 2, 1.),
         'ResNet18_a4_w1': ResNet18_quant(1, 1., 4, 1.),
         'ResNet18_a4_w4': ResNet18_quant(4, 1., 4, 1.),
@@ -149,7 +149,7 @@ def non_H_parameters(model):
 #optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 optimizer = optim.SGD([ {'params': non_H_parameters(model)}, 
                         {'params': H_parameters(model), 
-                         'weight_decay': 0}
+                         'weight_decay': 3e-5}
                       ], lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
 # Training

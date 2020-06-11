@@ -22,7 +22,7 @@ class Quantize_STE_clipped(Function):
     def backward(ctx, grad_output):
         input, H, = ctx.saved_tensors
         grad_input = grad_output.clone()
-        grad_H = torch.sum(Quantize(input/H, 1, ctx.n_bits) * grad_output.clone()).clamp_(-0.0001, 0.0001)
+        grad_H = torch.sum(Quantize(input/H, 1, ctx.n_bits) * grad_output.clone()).clamp_(-0.001, 0.001)
         grad_input[abs(input) > H] = 0
         return grad_input, grad_H, None
 
