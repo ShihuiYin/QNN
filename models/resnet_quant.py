@@ -91,11 +91,19 @@ class ResNet_quant(nn.Module):
         self.linear = QuantizeLinear(512*block.expansion, num_classes, n_bits=w_bits, H=w_H)
 
     def _make_layer(self, block, planes, num_blocks, stride, w_bits=1, w_H=1., a_bits=1, a_H=1., quant_output=True):
-        strides = [stride] + [1]*(num_blocks-1)
         layers = []
-        for stride in strides:
+        if num_blocks == 1:
             layers.append(block(self.in_planes, planes, stride, w_bits, w_H, a_bits, a_H, quant_output))
+        else:
+            layers.append(block(self.in_planes, planes, stride, w_bits, w_H, a_bits, a_H, True))
             self.in_planes = planes * block.expansion
+            for i in range(num_blocks-2):
+                layers.append(block(self.in_planes, planes, 1, w_bits, w_H, a_bits, a_H, True))
+                self.in_planes = planes * block.expansion
+            layers.append(block(self.in_planes, planes, 1, w_bits, w_H, a_bits, a_H, quant_output))
+            
+
+
         return nn.Sequential(*layers)
 
     def forward(self, x):
