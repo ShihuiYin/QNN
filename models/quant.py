@@ -52,7 +52,9 @@ def Quantize_STE(n_bits):
             input, H, output = ctx.saved_tensors
             grad_input = grad_output.clone()
             #grad_H = torch.sum(quant(input/H, 1) * grad_output.clone()).clamp_(-0.003, 0.003)
-            grad_H = torch.sum(output/H*(output-input)).clamp_(-0.001, 0.001)
+            #grad_H = torch.sum(output/H*(output-input)).clamp_(-0.001, 0.001)
+            # add regularization to H to minimize quantization error
+            grad_H = torch.sum(output/H*(1e-4*(output-input)+grad_output)).clamp_(-0.001, 0.001)
             grad_input[abs(input) > H] = 0
             return grad_input, grad_H
     return Quantize_STE_clipped2
