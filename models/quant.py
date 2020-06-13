@@ -43,14 +43,16 @@ def Quantize_STE(n_bits):
     class Quantize_STE_clipped2(Function):
         @staticmethod
         def forward(ctx, input, H):
-            ctx.save_for_backward(input, H)
-            return quant(input, H)
+            output = quant(input, H)
+            ctx.save_for_backward(input, H, output)
+            return output
 
         @staticmethod
         def backward(ctx, grad_output):
-            input, H, = ctx.saved_tensors
+            input, H, output = ctx.saved_tensors
             grad_input = grad_output.clone()
-            grad_H = torch.sum(quant(input/H, 1) * grad_output.clone()).clamp_(-0.001, 0.001)
+            #grad_H = torch.sum(quant(input/H, 1) * grad_output.clone()).clamp_(-0.003, 0.003)
+            grad_H = torch.sum(output/H*(output-input)).clamp_(-0.001, 0.001)
             grad_input[abs(input) > H] = 0
             return grad_input, grad_H
     return Quantize_STE_clipped2
