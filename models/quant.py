@@ -51,11 +51,10 @@ def Quantize_STE(n_bits):
         def backward(ctx, grad_output):
             input, H, output = ctx.saved_tensors
             grad_input = grad_output.clone()
-            #grad_H = torch.sum(quant(input/H, 1) * grad_output.clone()).clamp_(-0.003, 0.003)
             #grad_H = torch.sum(output/H*(output-input)).clamp_(-0.001, 0.001)
+            #grad_H = torch.sum(output/H*grad_output).clamp_(-0.001, 0.001)
             # add regularization to H to minimize quantization error
-            #grad_H = torch.sum(output/H*(1e-4*(output-input)+grad_output)).clamp_(-0.001, 0.001)
-            grad_H = torch.sum(output/H*grad_output).clamp_(-0.001, 0.001)
+            grad_H = torch.sum(output/H*(1e-1*(output-input)+grad_output)).clamp_(-0.01, 0.01)
             grad_input[abs(input) > H] = 0
             return grad_input, grad_H
     return Quantize_STE_clipped2
@@ -80,7 +79,7 @@ class QuantizeActLayer(nn.Module):
         self.inplace = inplace
         self.n_bits = n_bits
         self.H_init = H
-        self.H = nn.Parameter(data=torch.Tensor(1),requires_grad=True)
+        self.H = nn.Parameter(data=torch.Tensor(1),requires_grad=False)
         self.H.data = torch.tensor(self.H_init)
         self.quantize = Quantize_STE(n_bits)
 
@@ -98,9 +97,9 @@ class QuantizeLinear(nn.Linear):
         kwargs.pop('n_bits')
         kwargs.pop('H')
         super(QuantizeLinear, self).__init__(*kargs, **kwargs)
-        self.H = nn.Parameter(data=torch.Tensor(1), requires_grad=True)
-        #self.H.data = torch.tensor(self.H_init)
-        self.H.data = 2 * torch.std(self.weight.data)
+        self.H = nn.Parameter(data=torch.Tensor(1), requires_grad=False)
+        self.H.data = torch.tensor(self.H_init)
+        #self.H.data = 2 * torch.std(self.weight.data)
         self.quantize = Quantize_STE(self.n_bits).apply
 
     def forward(self, input):
@@ -120,9 +119,9 @@ class QuantizeConv2d(nn.Conv2d):
         kwargs.pop('n_bits')
         kwargs.pop('H')
         super(QuantizeConv2d, self).__init__(*kargs, **kwargs)
-        self.H = nn.Parameter(data=torch.Tensor(1), requires_grad=True)
-        #self.H.data = torch.tensor(self.H_init)
-        self.H.data = 2 * torch.std(self.weight.data)
+        self.H = nn.Parameter(data=torch.Tensor(1), requires_grad=False)
+        self.H.data = torch.tensor(self.H_init)
+        #self.H.data = 2 * torch.std(self.weight.data)
         self.quantize = Quantize_STE(self.n_bits).apply
 
     def forward(self, input):
