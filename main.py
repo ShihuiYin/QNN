@@ -72,6 +72,8 @@ model_dict = {
         'ResNet18_a2_w1': ResNet18_quant(1, 1., 2, 1.),
         'ResNet18_a4_w1': ResNet18_quant(1, 1., 4, 1.),
         'ResNet18_a4_w4': ResNet18_quant(4, 1., 4, 1.),
+        'ResNet18_ter_a1_w1': ResNet18_quant3(1, 1., 2, 1.),
+        'ResNet18_ter_a2_w1': ResNet18_quant3(1, 1., 2, 1.),
         'ResNet18': ResNet18()
         }
 model = model_dict[args.arch]

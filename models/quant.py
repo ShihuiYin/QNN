@@ -23,6 +23,18 @@ def Quantize2(n_bits):
         return xq
     return quantize
 
+def Quantize3(n_bits):
+    if n_bits == 1:
+        def ternarize(x, H):
+            return torch.clamp(x, -1., 1.).round()
+        return ternarize
+    k = 3**n_bits - 1.
+    def quantize(x, H):
+        with torch.no_grad():
+            xq = (torch.round((torch.clamp(x/(2*H), -0.5, 0.5) + 0.5) * k) / k - 0.5) * 2 * H
+        return xq
+    return quantize
+
 class Quantize_STE_clipped(Function):
     @staticmethod
     def forward(ctx, input, H, n_bits):
@@ -59,6 +71,28 @@ def Quantize_STE(n_bits):
             return grad_input, grad_H
     return Quantize_STE_clipped2
 
+
+def Quantize_STE3(n_bits):
+    quant = Quantize3(n_bits)
+    class Quantize_STE_clipped3(Function):
+        @staticmethod
+        def forward(ctx, input, H):
+            output = quant(input, H)
+            ctx.save_for_backward(input, H, output)
+            return output
+
+        @staticmethod
+        def backward(ctx, grad_output):
+            input, H, output = ctx.saved_tensors
+            grad_input = grad_output.clone()
+            #grad_H = torch.sum(output/H*(output-input)).clamp_(-0.001, 0.001)
+            #grad_H = torch.sum(output/H*grad_output).clamp_(-0.001, 0.001)
+            # add regularization to H to minimize quantization error
+            grad_H = torch.sum(output/H*(1e-1*(output-input)+grad_output)).clamp_(-0.01, 0.01)
+            grad_input[abs(input) > H] = 0
+            return grad_input, grad_H
+    return Quantize_STE_clipped3
+
 class Quantize_STE_identity(Function):
     @staticmethod
     def forward(ctx, input, H, n_bits):
@@ -88,6 +122,22 @@ class QuantizeActLayer(nn.Module):
 
     def extra_repr(self):
         return super(QuantizeActLayer, self).extra_repr() + 'n_bits={}'.format(self.n_bits) + ', H={}'.format(self.H)
+
+class QuantizeActLayer3(nn.Module):
+    def __init__(self, n_bits=2, H=1., inplace=True):
+        super(QuantizeActLayer3, self).__init__()
+        self.inplace = inplace
+        self.n_bits = n_bits
+        self.H_init = H
+        self.H = nn.Parameter(data=torch.Tensor(1),requires_grad=False)
+        self.H.data = torch.tensor(self.H_init)
+        self.quantize = Quantize_STE3(n_bits)
+
+    def forward(self, x):
+        return self.quantize.apply(x, self.H)
+
+    def extra_repr(self):
+        return super(QuantizeActLayer3, self).extra_repr() + 'n_bits={}'.format(self.n_bits) + ', H={}'.format(self.H)
 
 class QuantizeLinear(nn.Linear):
 
