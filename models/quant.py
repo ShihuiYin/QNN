@@ -18,8 +18,8 @@ def Quantize2(n_bits):
         return binarize
     k = 2**n_bits - 1.
     def quantize(x, H):
-        with torch.no_grad():
-            xq = (torch.round((torch.clamp(x/(2*H), -0.5, 0.5) + 0.5) * k) / k - 0.5) * 2 * H
+        xq = (torch.round((torch.clamp(x/(2*H), -0.5, 0.5) + 0.5) * k) / k - 0.5) * 2 * H
+        #xq = x.div_(2*H).clamp_(-0.5,0.5).add_(0.5).mul_(k).round_().div_(k).sub_(0.5).mul_(2*H)
         return xq
     return quantize
 
@@ -55,20 +55,23 @@ def Quantize_STE(n_bits):
     class Quantize_STE_clipped2(Function):
         @staticmethod
         def forward(ctx, input, H):
+            ctx.save_for_backward(input, H)
             output = quant(input, H)
-            ctx.save_for_backward(input, H, output)
+            #ctx.save_for_backward(input, H, output)
             return output
 
         @staticmethod
         def backward(ctx, grad_output):
-            input, H, output = ctx.saved_tensors
+            #input, H, output = ctx.saved_tensors
+            input, H= ctx.saved_tensors
             grad_input = grad_output.clone()
             #grad_H = torch.sum(output/H*(output-input)).clamp_(-0.001, 0.001)
             #grad_H = torch.sum(output/H*grad_output).clamp_(-0.001, 0.001)
             # add regularization to H to minimize quantization error
-            grad_H = torch.sum(output/H*(1e-1*(output-input)+grad_output)).clamp_(-0.01, 0.01)
+            #grad_H = torch.sum(output/H*(1e-1*(output-input)+grad_output)).clamp_(-0.01, 0.01)
             grad_input[abs(input) > H] = 0
-            return grad_input, grad_H
+            #return grad_input, grad_H
+            return grad_input, None
     return Quantize_STE_clipped2
 
 
@@ -118,7 +121,10 @@ class QuantizeActLayer(nn.Module):
         self.quantize = Quantize_STE(n_bits)
 
     def forward(self, x):
-        return self.quantize.apply(x, self.H)
+        y = nn.functional.hardtanh(x/self.H)
+        y.data = y.sign() * self.H
+        return y
+        #return self.quantize.apply(x, self.H)
 
     def extra_repr(self):
         return super(QuantizeActLayer, self).extra_repr() + 'n_bits={}'.format(self.n_bits) + ', H={}'.format(self.H)

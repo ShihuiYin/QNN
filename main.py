@@ -68,7 +68,7 @@ model_dict = {
         'VGGT_a2_w1': VGG_quant('VGGT', 2, 1, 256),
         'VGG': VGG('VGG'),
         'VGG16': VGG('VGG16'),
-        'ResNet18_a1_w1': ResNet18_quant(1, 1., 1, 0.25),
+        'ResNet18_a1_w1': ResNet18_quant(1, 1., 1, 2.),
         'ResNet18_a2_w1': ResNet18_quant(1, 1., 2, 1.),
         'ResNet18_a4_w1': ResNet18_quant(1, 1., 4, 1.),
         'ResNet18_a4_w4': ResNet18_quant(4, 1., 4, 1.),
