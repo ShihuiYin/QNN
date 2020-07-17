@@ -1,3 +1,7 @@
+# QNN on cifar10
+
+The code is merged from [kuangliu/pytorch-cifar](https://github.com/kuangliu/pytorch-cifar) and [itayhubara/BinaryNet.pytorch](https://github.com/itayubara/BinaryNet.pytorch)
+
 # Train CIFAR10 with PyTorch
 
 I'm playing with [PyTorch](http://pytorch.org/) on the CIFAR10 dataset.

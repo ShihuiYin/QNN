@@ -89,6 +89,15 @@ class ResNet_quant(nn.Module):
                 w_bits=w_bits, w_H=w_H, a_bits=a_bits, a_H=a_H, quant_output=False)
         self.quant_act2 = QuantizeActLayer(n_bits=a_bits, H=a_H)
         self.linear = QuantizeLinear(512*block.expansion, num_classes, n_bits=w_bits, H=w_H)
+        self.bn2 = nn.BatchNorm1d(num_classes)
+        self.logsoftmax = nn.LogSoftmax()
+        self.regime = {
+            0: {'optimizer': 'Adam', 'lr': 5e-3},
+            101: {'lr': 1e-3},
+            142: {'lr': 5e-4},
+            184: {'lr': 1e-4},
+            220: {'lr': 1e-5}
+        }
 
     def _make_layer(self, block, planes, num_blocks, stride, w_bits=1, w_H=1., a_bits=1, a_H=1., quant_output=True):
         layers = []
@@ -116,6 +125,8 @@ class ResNet_quant(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.quant_act2(out)
         out = self.linear(out)
+        out = self.bn2(out)
+        out = self.logsoftmax(out)
         return out
 
 

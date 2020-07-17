@@ -68,12 +68,10 @@ model_dict = {
         'VGGT_a2_w1': VGG_quant('VGGT', 2, 1, 256),
         'VGG': VGG('VGG'),
         'VGG16': VGG('VGG16'),
-        'ResNet18_a1_w1': ResNet18_quant(1, 1., 1, 2.),
+        'ResNet18_a1_w1': ResNet18_quant(1, 1., 1, 1.),
         'ResNet18_a2_w1': ResNet18_quant(1, 1., 2, 1.),
         'ResNet18_a4_w1': ResNet18_quant(1, 1., 4, 1.),
         'ResNet18_a4_w4': ResNet18_quant(4, 1., 4, 1.),
-        'ResNet18_ter_a1_w1': ResNet18_quant3(1, 1., 1, 1.),
-        'ResNet18_ter_a2_w1': ResNet18_quant3(1, 1., 2, 1.),
         'ResNet18': ResNet18()
         }
 model = model_dict[args.arch]
@@ -138,21 +136,7 @@ elif args.resume:
     start_epoch = checkpoint['epoch']
 
 criterion = nn.CrossEntropyLoss()
-def H_parameters(model):
-    for name, param in model.named_parameters():
-        if '.H' in name:
-            yield param
-
-def non_H_parameters(model):
-    for name, param in model.named_parameters():
-        if '.H' not in name:
-            yield param
-
-#optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-optimizer = optim.SGD([ {'params': non_H_parameters(model)}, 
-                        {'params': H_parameters(model), 
-                         'weight_decay': 3e-5}
-                      ], lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+optimizer = optim.SGD(model.parameters(), lr=args.lr)
 
 # Training
 def train(epoch):
@@ -165,10 +149,14 @@ def train(epoch):
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = criterion(outputs, targets)
-        # add negative log loss for H's
-        #loss += get_loss_for_H(model, args.weight_decay)
         loss.backward()
+        for p in list(model.parameters()):
+            if hasattr(p,'org'):
+                p.data.copy_(p.org)
         optimizer.step()
+        for p in list(model.parameters()):
+            if hasattr(p,'org'):
+                p.org.copy_(p.data.clamp_(-1,1))
         train_loss += loss.item()
         _, predicted = outputs.max(1)
         total += targets.size(0)
