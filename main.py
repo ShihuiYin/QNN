@@ -12,14 +12,14 @@ import os
 import argparse
 
 from models import *
-from utils import progress_bar, adjust_optimizer, get_loss_for_H
+from utils import progress_bar, adjust_optimizer, get_loss_for_H, update_sram_depth, simplify_BN_parameters
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--epochs', default=350, type=int, help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, help='manual epoch number')
 parser.add_argument('--lr', default=0.05, type=float, help='learning rate')
-parser.add_argument('--resume', action='store_true', help='resume from checkpoint')
+parser.add_argument('--resume', type=str, default=None, help='resume from checkpoint')
 parser.add_argument('--optimizer', default='SGD', type=str, help='optimizer function used')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float, help='weight decay')
@@ -27,6 +27,8 @@ parser.add_argument('--evaluate', type=str, help='evaluate model FILE on validat
 parser.add_argument('--save', type=str, help='path to save model')
 parser.add_argument('--arch', type=str, default='VGG', help='model architecture')
 parser.add_argument('--lr_final', type=float, default=-1, help='if positive, exponential lr schedule')
+parser.add_argument('--sram-depth', '--sd', default=0, type=int, help='sram depth')
+parser.add_argument('--quant-bound', '--qb', default=64, type=int, help='quantization bound')
 args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -52,10 +54,10 @@ transform_test = transforms.Compose([
 ])
 
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=100, shuffle=True, num_workers=1)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=100, shuffle=True, num_workers=1, pin_memory=True)
 
 testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
-testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=1)
+testloader = torch.utils.data.DataLoader(testset, batch_size=1000, shuffle=False, num_workers=4, pin_memory=True)
 
 # Model
 print('==> Building model..')
@@ -66,6 +68,9 @@ model_dict = {
         'VGGT_a1_w1': VGG_quant('VGGT', 1, 1, 256),
         'VGGT_a2_w2': VGG_quant('VGGT', 2, 2, 256),
         'VGGT_a2_w1': VGG_quant('VGGT', 2, 1, 256),
+        'VGGTBN_a1_w1': VGG_bn_quant('VGGT', 1, 1, 256),
+        'VGGTBN_a2_w2': VGG_bn_quant('VGGT', 2, 2, 256),
+        'VGGTBN_a2_w1': VGG_bn_quant('VGGT', 2, 1, 256),
         'VGG': VGG('VGG'),
         'VGG16': VGG('VGG16'),
         'ResNet18_a1_w1': ResNet18_quant(1, 1., 1, 1.),
@@ -93,6 +98,8 @@ if args.evaluate is None:
     print(model)
 
 regime = getattr(model, 'regime', {0: {'optimizer': args.optimizer,
+                                     'weight_decay': args.weight_decay,
+                                     'momentum': args.momentum,
                                      'lr': args.lr},
                                  150: {'lr': args.lr / 10.},
                                  250: {'lr': args.lr / 100.},
@@ -129,9 +136,9 @@ if args.evaluate:
 elif args.resume:
     # Load checkpoint.
     print('==> Resuming from checkpoint..')
-    assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
-    checkpoint = torch.load('./checkpoint/ckpt.pth')
-    model.load_state_dict(checkpoint['model'])
+    assert os.path.isfile(args.resume), 'Error: no checkpoint directory found!'
+    checkpoint = torch.load(args.resume)
+    model.load_state_dict(checkpoint['model'], strict=False)
     best_acc = checkpoint['acc']
     start_epoch = checkpoint['epoch']
 
@@ -180,10 +187,10 @@ def test(epoch):
             outputs = model(inputs)
             loss = criterion(outputs, targets)
 
-            test_loss += loss.item()
+            test_loss += loss
             _, predicted = outputs.max(1)
             total += targets.size(0)
-            correct += predicted.eq(targets).sum().item()
+            correct += predicted.eq(targets).sum()
 
             progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%%'
                 % (test_loss/(batch_idx+1), 100.*correct/total))
@@ -206,7 +213,12 @@ def test(epoch):
         torch.save(state, os.path.join('./checkpoint/', 'model.pth'))
     return test_loss, test_acc
 
+update_sram_depth(model, args.sram_depth, args.quant_bound)
+
 if args.evaluate:
+    if args.sram_depth > 0:
+        simplify_BN_parameters(model)
+
     test(0)
     exit()
 

@@ -11,7 +11,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.init as init
-from models.quant import QuantizeLinear, QuantizeConv2d, QuantizeActLayer
+from models.quant import QuantizeLinear, QuantizeConv2d, QuantizeActLayer, BatchNorm2d, BatchNorm1d
 
 def get_loss_for_H(model, weight_decay=1e-4):
     loss = 0
@@ -24,6 +24,11 @@ def get_loss_for_H(model, weight_decay=1e-4):
             #loss += -1/2 * weight_decay * (m.H ** 2)
     return loss
 
+def update_sram_depth(model, sram_depth, quant_bound):
+    for m in model.modules():
+        if isinstance(m, QuantizeLinear) or isinstance(m, QuantizeConv2d):
+            m.sram_depth = sram_depth
+            m.quant_bound = quant_bound
 
 def get_mean_and_std(dataset):
     '''Compute the mean and std value of dataset.'''
@@ -187,3 +192,33 @@ def adjust_optimizer(optimizer, epoch, config):
 
     return optimizer
 
+def simplify_BN_parameters(model):
+    ml = []
+    for m in model.modules():
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+            ml.append(m)
+        if isinstance(m, BatchNorm2d) or isinstance(m, BatchNorm1d):
+            ml.append(m)
+
+    num_pairs = len(ml) // 2
+    for p in range(1, num_pairs): # skip the first pair
+        if (isinstance(ml[2*p], nn.Conv2d) and isinstance(ml[2*p+1], BatchNorm2d)) or \
+           (isinstance(ml[2*p], nn.Linear) and isinstance(ml[2*p+1], BatchNorm1d)):
+            ml[2*p].mode = 'hardware'
+            ml[2*p+1].mode = 'hardware'
+            ml[2*p+1].weight_effective.data = ml[2*p+1].weight / torch.sqrt(ml[2*p+1].running_var + ml[2*p+1].eps)
+            ml[2*p+1].bias_effective.data = ml[2*p+1].weight_effective * (ml[2*p].bias - ml[2*p+1].running_mean) + ml[2*p+1].bias
+            ml[2*p].bias.data.zero_()
+            ml[2*p+1].weight_effective.data *= (ml[2*p].quant_bound / 5.) # 11 levels, uniform-spaced quantization
+            # rectify effective weights
+            if torch.any(ml[2*p+1].weight_effective < 0):
+                IX = torch.where(ml[2*p+1].weight_effective < 0)[0]
+                ml[2*p+1].weight_effective.data[IX] *= -1.
+                ml[2*p].weight.data[IX] *= -1. # note: this is still not equivalent when max pooling is considered.
+            if torch.any(ml[2*p+1].weight_effective < 0):
+                print("Negative effective weights found in")
+                print(ml[2*p+1])
+
+
+    if isinstance(ml[-1], nn.Linear):
+        ml[-1].bias.data.div_(ml[-1].quant_bound / 5.)

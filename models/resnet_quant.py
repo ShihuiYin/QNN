@@ -90,9 +90,9 @@ class ResNet_quant(nn.Module):
         self.quant_act2 = QuantizeActLayer(n_bits=a_bits, H=a_H)
         self.linear = QuantizeLinear(512*block.expansion, num_classes, n_bits=w_bits, H=w_H)
         self.bn2 = nn.BatchNorm1d(num_classes)
-        self.logsoftmax = nn.LogSoftmax()
+        self.logsoftmax = nn.LogSoftmax(dim=1)
         self.regime = {
-            0: {'optimizer': 'Adam', 'lr': 5e-3},
+            0: {'optimizer': 'Adam', 'lr': 5e-3, 'momentum': 0, 'weight_decay': 0},
             101: {'lr': 1e-3},
             142: {'lr': 5e-4},
             184: {'lr': 1e-4},

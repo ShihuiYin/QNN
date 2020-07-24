@@ -1,5 +1,6 @@
 from .vgg import *
 from .vgg_quant import *
+from .vgg_bn_quant import *
 from .dpn import *
 from .lenet import *
 from .senet import *
