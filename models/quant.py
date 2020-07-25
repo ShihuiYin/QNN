@@ -22,19 +22,22 @@ def Quant_k(x, H=64., levels=11, mode='software'): # levels should be an odd num
         y.data.mul_(scale_inv)
     return y
 
-@profile
+#@profile
 def Quant_prob(x, cdf_table=None, step_size=2, H=60, levels=11, mode='software'):
     y = nn.functional.hardtanh(x, -H, H)
     scale = (levels - 1) / (2*H)
     if cdf_table is None: # ideal quantization
         y.data.mul_(scale).round_()
     else:
-        sram_depth = (cdf_table.shape[0]-1) * 2 / step_size
-        x_ind = (x + sram_depth) / step_size
-        x_cdf = cdf_table[x_ind.type(torch.int64)]
-        x_rand = torch.rand(x.shape, device=x.device).unsqueeze(-1).expand_as(x_cdf)
-        x_comp = (x_rand > x_cdf).sum(dim=-1)
-        y.data = x_comp - (levels-1)/2.
+        with torch.no_grad():
+            sram_depth = (cdf_table.shape[0]-1) * 2 / step_size
+            if step_size == 2:
+                x_ind = x.add(sram_depth).type(torch.int64).__rshift__(1)
+            else:
+                x_ind = x.add(sram_depth).type(torch.int64)
+            x_cdf = cdf_table[x_ind]
+            x_rand = torch.rand(x.shape, device=x.device).unsqueeze(-1).expand_as(x_cdf)
+            y.data = (x_rand-x_cdf).sign().sum(dim=-1).__rshift__(1)
     if mode == 'software':
         scale_inv = 1. / scale
         y.data.mul_(scale_inv)
@@ -98,7 +101,6 @@ class QuantizeConv2d(nn.Conv2d):
         self.mode = 'software'
         super(QuantizeConv2d, self).__init__(*kargs, **kwargs)
 
-    @profile
     def forward(self, input):
         if not hasattr(self.weight,'org'):
             self.weight.org=self.weight.data.clone()

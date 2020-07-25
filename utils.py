@@ -34,7 +34,9 @@ def update_sram_depth(model, sram_depth, quant_bound, prob_table, step_size):
             m.step_size = step_size
             if prob_table is not None:
                 data = sio.loadmat(prob_table)
-                m.cdf_table = torch.tensor(data['prob']).cuda().cumsum(dim=-1)
+                cdf_table = torch.tensor(data['prob']).cuda().cumsum(dim=-1).float()
+                m.cdf_table = cdf_table[:,0:-1]
+                #m.cdf_table = torch.tensor(data['prob']).cuda().float()
 
 def get_mean_and_std(dataset):
     '''Compute the mean and std value of dataset.'''

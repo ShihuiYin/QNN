@@ -23,13 +23,13 @@ parser.add_argument('--resume', type=str, default=None, help='resume from checkp
 parser.add_argument('--optimizer', default='SGD', type=str, help='optimizer function used')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float, help='weight decay')
-parser.add_argument('--evaluate', type=str, help='evaluate model FILE on validation set')
+parser.add_argument('--evaluate', type=str, default='checkpoint/vggtbn_a1_w1.pth', help='evaluate model FILE on validation set')
 parser.add_argument('--save', type=str, help='path to save model')
-parser.add_argument('--arch', type=str, default='VGG', help='model architecture')
+parser.add_argument('--arch', type=str, default='VGGTBN_a1_w1', help='model architecture')
 parser.add_argument('--lr_final', type=float, default=-1, help='if positive, exponential lr schedule')
-parser.add_argument('--sram-depth', '--sd', default=0, type=int, help='sram depth')
-parser.add_argument('--quant-bound', '--qb', default=64, type=int, help='quantization bound')
-parser.add_argument('--prob_table', '--pt', default=None, type=str, help='prob table file')
+parser.add_argument('--sram-depth', '--sd', default=256, type=int, help='sram depth')
+parser.add_argument('--quant-bound', '--qb', default=60, type=int, help='quantization bound')
+parser.add_argument('--prob_table', '--pt', default='prob.mat', type=str, help='prob table file')
 parser.add_argument('--step_size', '--ss', default=2, type=int, help='step size of prob table')
 args = parser.parse_args()
 
@@ -222,7 +222,7 @@ if args.evaluate:
         simplify_BN_parameters(model)
 
     test(0)
-    exit()
+    exit(0)
 
 for epoch in range(start_epoch, args.epochs):
     optimizer = adjust_optimizer(optimizer, epoch, regime)
