@@ -13,6 +13,8 @@ import torch.nn as nn
 import torch.nn.init as init
 from models.quant import QuantizeLinear, QuantizeConv2d, QuantizeActLayer, BatchNorm2d, BatchNorm1d
 
+import scipy.io as sio
+
 def get_loss_for_H(model, weight_decay=1e-4):
     loss = 0
     for m in model.modules():
@@ -24,11 +26,15 @@ def get_loss_for_H(model, weight_decay=1e-4):
             #loss += -1/2 * weight_decay * (m.H ** 2)
     return loss
 
-def update_sram_depth(model, sram_depth, quant_bound):
+def update_sram_depth(model, sram_depth, quant_bound, prob_table, step_size):
     for m in model.modules():
         if isinstance(m, QuantizeLinear) or isinstance(m, QuantizeConv2d):
             m.sram_depth = sram_depth
             m.quant_bound = quant_bound
+            m.step_size = step_size
+            if prob_table is not None:
+                data = sio.loadmat(prob_table)
+                m.cdf_table = torch.tensor(data['prob']).cuda().cumsum(dim=-1)
 
 def get_mean_and_std(dataset):
     '''Compute the mean and std value of dataset.'''
@@ -215,9 +221,12 @@ def simplify_BN_parameters(model):
                 IX = torch.where(ml[2*p+1].weight_effective < 0)[0]
                 ml[2*p+1].weight_effective.data[IX] *= -1.
                 ml[2*p].weight.data[IX] *= -1. # note: this is still not equivalent when max pooling is considered.
-            if torch.any(ml[2*p+1].weight_effective < 0):
-                print("Negative effective weights found in")
-                print(ml[2*p+1])
+            # comment below if it's not -1/+1 activation
+            ml[2*p+1].bias_effective.data /= ml[2*p+1].weight_effective
+            ml[2*p+1].weight_effective.data.fill_(1.)
+            # round bias to int8
+            ml[2*p+1].bias_effective.data.clamp_(-255, 256).round_() # -bias_effective is the actual data load to HW
+
 
 
     if isinstance(ml[-1], nn.Linear):

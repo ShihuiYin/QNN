@@ -29,6 +29,8 @@ parser.add_argument('--arch', type=str, default='VGG', help='model architecture'
 parser.add_argument('--lr_final', type=float, default=-1, help='if positive, exponential lr schedule')
 parser.add_argument('--sram-depth', '--sd', default=0, type=int, help='sram depth')
 parser.add_argument('--quant-bound', '--qb', default=64, type=int, help='quantization bound')
+parser.add_argument('--prob_table', '--pt', default=None, type=str, help='prob table file')
+parser.add_argument('--step_size', '--ss', default=2, type=int, help='step size of prob table')
 args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -57,7 +59,7 @@ trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=100, shuffle=True, num_workers=1, pin_memory=True)
 
 testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
-testloader = torch.utils.data.DataLoader(testset, batch_size=1000, shuffle=False, num_workers=4, pin_memory=True)
+testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=4, pin_memory=True)
 
 # Model
 print('==> Building model..')
@@ -213,7 +215,7 @@ def test(epoch):
         torch.save(state, os.path.join('./checkpoint/', 'model.pth'))
     return test_loss, test_acc
 
-update_sram_depth(model, args.sram_depth, args.quant_bound)
+update_sram_depth(model, args.sram_depth, args.quant_bound, args.prob_table, args.step_size)
 
 if args.evaluate:
     if args.sram_depth > 0:

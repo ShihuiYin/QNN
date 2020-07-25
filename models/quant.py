@@ -22,6 +22,24 @@ def Quant_k(x, H=64., levels=11, mode='software'): # levels should be an odd num
         y.data.mul_(scale_inv)
     return y
 
+@profile
+def Quant_prob(x, cdf_table=None, step_size=2, H=60, levels=11, mode='software'):
+    y = nn.functional.hardtanh(x, -H, H)
+    scale = (levels - 1) / (2*H)
+    if cdf_table is None: # ideal quantization
+        y.data.mul_(scale).round_()
+    else:
+        sram_depth = (cdf_table.shape[0]-1) * 2 / step_size
+        x_ind = (x + sram_depth) / step_size
+        x_cdf = cdf_table[x_ind.type(torch.int64)]
+        x_rand = torch.rand(x.shape, device=x.device).unsqueeze(-1).expand_as(x_cdf)
+        x_comp = (x_rand > x_cdf).sum(dim=-1)
+        y.data = x_comp - (levels-1)/2.
+    if mode == 'software':
+        scale_inv = 1. / scale
+        y.data.mul_(scale_inv)
+    return y
+
 class QuantizeActLayer(nn.Module):
     def __init__(self, n_bits=2, H=1., inplace=True):
         super(QuantizeActLayer, self).__init__()
@@ -30,8 +48,7 @@ class QuantizeActLayer(nn.Module):
 
     def forward(self, x):
         y = nn.functional.hardtanh(x)
-        with torch.no_grad():
-            y.data = Quantize(y.data, n_bits=self.n_bits)
+        y.data = Quantize(y.data, n_bits=self.n_bits)
         return y
 
     def extra_repr(self):
@@ -44,6 +61,8 @@ class QuantizeLinear(nn.Linear):
         self.H_init = kwargs.pop('H')
         self.sram_depth = 0 # will be over-written in main.py
         self.quant_bound = 64
+        self.cdf_table = None
+        self.step_size = 2
         self.mode = 'software'
         super(QuantizeLinear, self).__init__(*kargs, **kwargs)
 
@@ -57,7 +76,7 @@ class QuantizeLinear(nn.Linear):
             out = 0
             for input_p, weight_p in zip(input_list, self.weight_list):
                 partial_sum = nn.functional.linear(input_p, weight_p)
-                partial_sum_quantized = Quant_k(partial_sum, self.quant_bound, mode=self.mode)
+                partial_sum_quantized = Quant_prob(partial_sum, cdf_table=self.cdf_table, step_size=self.step_size, H=self.quant_bound, mode=self.mode)
                 out += partial_sum_quantized
         else:
             out = nn.functional.linear(input, self.weight)
@@ -69,15 +88,17 @@ class QuantizeLinear(nn.Linear):
         return super(QuantizeLinear, self).extra_repr() + ', n_bits={}'.format(self.n_bits)
 
 class QuantizeConv2d(nn.Conv2d):
-
     def __init__(self, *kargs, **kwargs):
         self.n_bits = kwargs.pop('n_bits')
         self.H_init = kwargs.pop('H')
         self.sram_depth = 0 # will be over-written in main.py
         self.quant_bound = 64
+        self.cdf_table = None
+        self.step_size = 2
         self.mode = 'software'
         super(QuantizeConv2d, self).__init__(*kargs, **kwargs)
 
+    @profile
     def forward(self, input):
         if not hasattr(self.weight,'org'):
             self.weight.org=self.weight.data.clone()
@@ -94,7 +115,7 @@ class QuantizeConv2d(nn.Conv2d):
                         input_kj = input_p[:,:,k:k+map_x, j:j+map_y] #.contiguous()
                         weight_kj = weight_p[:,:,k:k+1,j:j+1] #.contiguous()
                         partial_sum = nn.functional.conv2d(input_kj, weight_kj, None, self.stride, (0,0), self.dilation, self.groups)
-                        partial_sum_quantized = Quant_k(partial_sum, self.quant_bound, mode=self.mode)
+                        partial_sum_quantized = Quant_prob(partial_sum, cdf_table=self.cdf_table, step_size=self.step_size, H=self.quant_bound, mode=self.mode)
                         out += partial_sum_quantized
 
         else:
@@ -111,8 +132,6 @@ class QuantizeConv2d(nn.Conv2d):
 class BatchNorm2d(nn.BatchNorm2d):
     def __init__(self, num_features, eps=1e-5, momentum=0.1, affine=True, track_running_status=True):
         self.mode = 'software' # 'software': normal batchnorm in software; 'hardware': simplified batchnorm in hardware
-        self.preceding_bias = torch.zeros((num_features,)).cuda()
-        self.preceding_scale = 1.
         self.weight_effective = torch.ones((num_features,)).cuda()
         self.bias_effective = torch.zeros((num_features,)).cuda()
         super(BatchNorm2d, self).__init__(num_features, eps, momentum, affine, track_running_status)
@@ -126,8 +145,6 @@ class BatchNorm2d(nn.BatchNorm2d):
 class BatchNorm1d(nn.BatchNorm1d):
     def __init__(self, num_features, eps=1e-5, momentum=0.1, affine=True, track_running_status=True):
         self.mode = 'software' # 'software': normal batchnorm in software; 'hardware': simplified batchnorm in hardware
-        self.preceding_bias = torch.zeros((num_features,)).cuda()
-        self.preceding_scale = 1.
         self.weight_effective = torch.ones((num_features,)).cuda()
         self.bias_effective = torch.zeros((num_features,)).cuda()
         super(BatchNorm1d, self).__init__(num_features, eps, momentum, affine, track_running_status)
