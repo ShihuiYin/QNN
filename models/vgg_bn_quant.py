@@ -7,6 +7,7 @@ cfg = {
     'VGG': [128, 128, 'M', 256, 256, 'M', 512, 512, 'M'],
     'VGGS': [128, 128, 'M', 256, 256, 'M', 256, 256, 'M'],
     'VGGT': [128, 128, 'M', 128, 256, 'M', 256, 256, 'M'],
+    'VGGA': [128, 128, 'M', 128, 256, 'M', 256, 256, 'A'],
     'VGGD': [128, 128, 'M', 256, 256, 'M', 512, 512, 'M'],
     'VGG11': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'VGG13': [64, 64, 'M', 128, 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
@@ -26,8 +27,8 @@ class VGG_bn_quant(nn.Module):
         num_maxpooling_layers = cfg[vgg_name].count('M')
         if 'S' in vgg_name or 'T' in vgg_name:
             last_conv_layer_output_dim = 256 * (4 ** (5 - num_maxpooling_layers))
-        elif 'D' in vgg_name:
-            last_conv_layer_output_dim = 512 * (4 ** (5 - num_maxpooling_layers))
+        elif 'A' in vgg_name:
+            last_conv_layer_output_dim = 256
         else:
             last_conv_layer_output_dim = 512 * (4 ** (5 - num_maxpooling_layers))
         self.classifier = nn.Sequential(
@@ -64,6 +65,8 @@ class VGG_bn_quant(nn.Module):
             else:
                 if x == 'M':
                     layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
+                elif x == 'A':
+                    layers += [nn.AvgPool2d(kernel_size=8)]
                 else:
                     layers += [BatchNorm2d(in_channels), QuantizeActLayer(n_bits=self.a_bits, H=self.a_H)]
                     layers += [QuantizeConv2d(in_channels, x, kernel_size=3, padding=1, n_bits=self.w_bits, H=self.w_H)]

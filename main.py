@@ -29,7 +29,7 @@ parser.add_argument('--arch', type=str, default='VGGTBN_a1_w1', help='model arch
 parser.add_argument('--lr_final', type=float, default=-1, help='if positive, exponential lr schedule')
 parser.add_argument('--sram-depth', '--sd', default=256, type=int, help='sram depth')
 parser.add_argument('--quant-bound', '--qb', default=60, type=int, help='quantization bound')
-parser.add_argument('--prob_table', '--pt', default='prob.mat', type=str, help='prob table file')
+parser.add_argument('--prob_table', '--pt', default=None, type=str, help='prob table file')
 args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -72,6 +72,9 @@ model_dict = {
         'VGGTBN_a1_w1': VGG_bn_quant('VGGT', 1, 1, 256),
         'VGGTBN_a2_w2': VGG_bn_quant('VGGT', 2, 2, 256),
         'VGGTBN_a2_w1': VGG_bn_quant('VGGT', 2, 1, 256),
+        'VGGABN_a1_w1': VGG_bn_quant('VGGA', 1, 1, 256),
+        'VGGABN_a2_w2': VGG_bn_quant('VGGA', 2, 2, 256),
+        'VGGABN_a2_w1': VGG_bn_quant('VGGA', 2, 1, 256),
         'VGG': VGG('VGG'),
         'VGG16': VGG('VGG16'),
         'ResNet18_a1_w1': ResNet18_quant(1, 1., 1, 1.),
