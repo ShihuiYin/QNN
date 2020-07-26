@@ -23,14 +23,13 @@ parser.add_argument('--resume', type=str, default=None, help='resume from checkp
 parser.add_argument('--optimizer', default='SGD', type=str, help='optimizer function used')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float, help='weight decay')
-parser.add_argument('--evaluate', type=str, default='checkpoint/vggtbn_a1_w1.pth', help='evaluate model FILE on validation set')
+parser.add_argument('--evaluate', type=str, default=None, help='evaluate model FILE on validation set')
 parser.add_argument('--save', type=str, help='path to save model')
 parser.add_argument('--arch', type=str, default='VGGTBN_a1_w1', help='model architecture')
 parser.add_argument('--lr_final', type=float, default=-1, help='if positive, exponential lr schedule')
 parser.add_argument('--sram-depth', '--sd', default=256, type=int, help='sram depth')
 parser.add_argument('--quant-bound', '--qb', default=60, type=int, help='quantization bound')
 parser.add_argument('--prob_table', '--pt', default='prob.mat', type=str, help='prob table file')
-parser.add_argument('--step_size', '--ss', default=2, type=int, help='step size of prob table')
 args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -215,7 +214,7 @@ def test(epoch):
         torch.save(state, os.path.join('./checkpoint/', 'model.pth'))
     return test_loss, test_acc
 
-update_sram_depth(model, args.sram_depth, args.quant_bound, args.prob_table, args.step_size)
+update_sram_depth(model, args.sram_depth, args.quant_bound, args.prob_table)
 
 if args.evaluate:
     if args.sram_depth > 0:

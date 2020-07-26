@@ -4,9 +4,12 @@ import torch.nn as nn
 from torch.autograd import Function
 import numpy as np
 
-def Quantize(tensor, H=1., n_bits=2):
+def Quantize(tensor, H=1., n_bits=2, mode='software'):
     if n_bits == 1:
-        return tensor.sign() * H
+        if mode == 'software':
+            return tensor.sign() * H
+        else:
+            return tensor.sub(1e-15).sign() * H # quantize 0. to -1.
     if isinstance(H, torch.Tensor):
         tensor=torch.round((torch.clamp(tensor, -H.data, H.data)+H.data) * (2**n_bits - 1) / (2*H.data)) * 2*H.data / (2**n_bits - 1) - H.data
     else:
@@ -22,22 +25,23 @@ def Quant_k(x, H=64., levels=11, mode='software'): # levels should be an odd num
         y.data.mul_(scale_inv)
     return y
 
-#@profile
-def Quant_prob(x, cdf_table=None, step_size=2, H=60, levels=11, mode='software'):
-    y = nn.functional.hardtanh(x, -H, H)
+def Quant_prob(x, cdf_table=None, H=60, levels=11, mode='software'):
+    if mode == 'software':
+        y = x.clone()
+    else:
+        y = x
     scale = (levels - 1) / (2*H)
     if cdf_table is None: # ideal quantization
         y.data.mul_(scale).round_()
     else:
         with torch.no_grad():
-            sram_depth = (cdf_table.shape[0]-1) * 2 / step_size
-            if step_size == 2:
-                x_ind = x.add(sram_depth).type(torch.int64).__rshift__(1)
-            else:
-                x_ind = x.add(sram_depth).type(torch.int64)
-            x_cdf = cdf_table[x_ind]
-            x_rand = torch.rand(x.shape, device=x.device).unsqueeze(-1).expand_as(x_cdf)
-            y.data = (x_rand-x_cdf).sign().sum(dim=-1).__rshift__(1)
+            sram_depth = (cdf_table.weight.shape[0]-1) / 2
+            x_ind = x.add(sram_depth).type(torch.int64)
+            #x_cdf = cdf_table[x_ind]
+            x_cdf = cdf_table(x_ind)
+            x_comp = torch.rand_like(x).unsqueeze(-1).expand_as(x_cdf).sub(x_cdf).sign()
+            y.data = x_comp.sum(dim=-1).mul(0.5)
+            #y.data = (x_rand-x_cdf).sign().sum(dim=-1).mul(0.5)
     if mode == 'software':
         scale_inv = 1. / scale
         y.data.mul_(scale_inv)
@@ -48,10 +52,11 @@ class QuantizeActLayer(nn.Module):
         super(QuantizeActLayer, self).__init__()
         self.inplace = inplace
         self.n_bits = n_bits
+        self.mode = 'software'
 
     def forward(self, x):
         y = nn.functional.hardtanh(x)
-        y.data = Quantize(y.data, n_bits=self.n_bits)
+        y.data = Quantize(y.data, n_bits=self.n_bits, mode=self.mode)
         return y
 
     def extra_repr(self):
@@ -65,7 +70,6 @@ class QuantizeLinear(nn.Linear):
         self.sram_depth = 0 # will be over-written in main.py
         self.quant_bound = 64
         self.cdf_table = None
-        self.step_size = 2
         self.mode = 'software'
         super(QuantizeLinear, self).__init__(*kargs, **kwargs)
 
@@ -79,7 +83,7 @@ class QuantizeLinear(nn.Linear):
             out = 0
             for input_p, weight_p in zip(input_list, self.weight_list):
                 partial_sum = nn.functional.linear(input_p, weight_p)
-                partial_sum_quantized = Quant_prob(partial_sum, cdf_table=self.cdf_table, step_size=self.step_size, H=self.quant_bound, mode=self.mode)
+                partial_sum_quantized = Quant_prob(partial_sum, cdf_table=self.cdf_table, H=self.quant_bound, mode=self.mode)
                 out += partial_sum_quantized
         else:
             out = nn.functional.linear(input, self.weight)
@@ -97,7 +101,6 @@ class QuantizeConv2d(nn.Conv2d):
         self.sram_depth = 0 # will be over-written in main.py
         self.quant_bound = 64
         self.cdf_table = None
-        self.step_size = 2
         self.mode = 'software'
         super(QuantizeConv2d, self).__init__(*kargs, **kwargs)
 
@@ -117,7 +120,7 @@ class QuantizeConv2d(nn.Conv2d):
                         input_kj = input_p[:,:,k:k+map_x, j:j+map_y] #.contiguous()
                         weight_kj = weight_p[:,:,k:k+1,j:j+1] #.contiguous()
                         partial_sum = nn.functional.conv2d(input_kj, weight_kj, None, self.stride, (0,0), self.dilation, self.groups)
-                        partial_sum_quantized = Quant_prob(partial_sum, cdf_table=self.cdf_table, step_size=self.step_size, H=self.quant_bound, mode=self.mode)
+                        partial_sum_quantized = Quant_prob(partial_sum, cdf_table=self.cdf_table, H=self.quant_bound, mode=self.mode)
                         out += partial_sum_quantized
 
         else:
