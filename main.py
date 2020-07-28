@@ -12,7 +12,9 @@ import os
 import argparse
 
 from models import *
-from utils import progress_bar, adjust_optimizer, get_loss_for_H, update_sram_depth, simplify_BN_parameters
+from utils import progress_bar, adjust_optimizer, get_loss_for_H, update_sram_depth, simplify_BN_parameters, \
+                  add_input_hook_for_2nd_conv_layer
+import scipy.io as sio
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
@@ -30,6 +32,8 @@ parser.add_argument('--lr_final', type=float, default=-1, help='if positive, exp
 parser.add_argument('--sram-depth', '--sd', default=256, type=int, help='sram depth')
 parser.add_argument('--quant-bound', '--qb', default=60, type=int, help='quantization bound')
 parser.add_argument('--prob_table', '--pt', default=None, type=str, help='prob table file')
+parser.add_argument('--runs', default=1, type=int, help='how many runs for stochastic quantization')
+parser.add_argument('--save-first-layer-out', '--sf', action='store_true', help='save for HW evaluation')
 args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -41,7 +45,6 @@ test_acc = 0
 start_epoch = args.start_epoch
 
 # Data
-print('==> Preparing data..')
 transform_train = transforms.Compose([
     transforms.RandomCrop(32, padding=4),
     transforms.RandomHorizontalFlip(),
@@ -84,20 +87,6 @@ model_dict = {
         'ResNet18': ResNet18()
         }
 model = model_dict[args.arch]
-#model = VGG_binary('VGG')
-#model = VGG('VGG16')
-# model = ResNet18()
-# model = PreActResNet18()
-# model = GoogLeNet()
-# model = DenseNet121()
-# model = ResNeXt29_2x64d()
-# model = MobileNet()
-# model = MobileNetV2()
-# model = DPN92()
-# model = ShuffleNetG2()
-# model = SENet18()
-# model = ShuffleNetV2(1)
-# model = EfficientNetB0()
 if args.evaluate is None:
     print(model)
 
@@ -135,7 +124,7 @@ if args.evaluate:
     else:
         state_dict_name = 'state_dict'
     model.load_state_dict(checkpoint[state_dict_name], strict=False)
-    print(model)
+    #print(model)
     args.save = None
 elif args.resume:
     # Load checkpoint.
@@ -217,13 +206,49 @@ def test(epoch):
         torch.save(state, os.path.join('./checkpoint/', 'model.pth'))
     return test_loss, test_acc
 
+def record_input():
+    global best_acc
+    model.eval()
+    test_loss = 0
+    correct = 0
+    total = 0
+    Hook = add_input_hook_for_2nd_conv_layer(model)
+    Labels = []
+    Inputs = []
+    with torch.no_grad():
+        for batch_idx, (inputs, targets) in enumerate(testloader):
+            inputs, targets = inputs.to(device), targets.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+
+            test_loss += loss
+            _, predicted = outputs.max(1)
+            total += targets.size(0)
+            correct += predicted.eq(targets).sum()
+            Labels.append(targets.type(torch.int8))
+            Inputs.append(Hook.input[0].type(torch.int8))
+
+            progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%%'
+                % (test_loss/(batch_idx+1), 100.*correct/total))
+    Labels = torch.cat(Labels).cpu().numpy()
+    Inputs = torch.cat(Inputs).cpu().numpy()
+    sio.savemat('results/CIFAR10.mat', {'Inputs': Inputs, 'Labels': Labels})
+
 update_sram_depth(model, args.sram_depth, args.quant_bound, args.prob_table)
 
 if args.evaluate:
     if args.sram_depth > 0:
         simplify_BN_parameters(model)
-
-    test(0)
+    if args.save_first_layer_out:
+        record_input()
+    else:
+        if args.runs > 1:
+            test_acc = torch.zeros((args.runs,)).cuda()
+            for i in range(args.runs):
+                test_loss, test_acc[i] = test(0)
+            print("Average test accuracy: %.2f (%.2f)" % (test_acc.mean(), test_acc.std()))
+        else:
+            test_loss, test_acc = test(0)
     exit(0)
 
 for epoch in range(start_epoch, args.epochs):

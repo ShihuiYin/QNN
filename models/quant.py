@@ -6,10 +6,13 @@ import numpy as np
 
 def Quantize(tensor, H=1., n_bits=2, mode='software'):
     if n_bits == 1:
-        if mode == 'software':
-            return tensor.sign() * H
-        else:
-            return tensor.sub(1e-15).sign() * H # quantize 0. to -1.
+        #if mode == 'software':
+        #    return tensor.sign() * H
+        #else:
+        #    return tensor.add(1e-15).sign() * H # quantize 0. to -1.
+        #return tensor.sign() * H
+        tensor=torch.where(tensor > 0, torch.tensor(H, device=tensor.device), torch.tensor(-H, device=tensor.device)) # quantize 0 to -1
+        return tensor
     if isinstance(H, torch.Tensor):
         tensor=torch.round((torch.clamp(tensor, -H.data, H.data)+H.data) * (2**n_bits - 1) / (2*H.data)) * 2*H.data / (2**n_bits - 1) - H.data
     else:
@@ -108,7 +111,7 @@ class QuantizeConv2d(nn.Conv2d):
         if not hasattr(self.weight,'org'):
             self.weight.org=self.weight.data.clone()
         self.weight.data=Quantize(self.weight.org, n_bits=self.n_bits)
-        if self.sram_depth > 0 and input.shape[1] > 3:
+        if self.sram_depth > 0 and self.in_channels > 3:
             input_padded = torch.nn.functional.pad(input, [self.padding[0]]*4)
             input_list = torch.split(input_padded, self.sram_depth, dim=1)
             self.weight_list = torch.split(self.weight, self.sram_depth, dim=1)

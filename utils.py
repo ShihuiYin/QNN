@@ -44,6 +44,29 @@ def update_sram_depth(model, sram_depth, quant_bound, prob_table):
                      cdf_table_interpolated = cdf_table[:,0:-1].contiguous()
                 m.cdf_table = torch.nn.Embedding.from_pretrained(cdf_table_interpolated)
 
+class Hook_record_input():
+    def __init__(self, module):
+        self.hook = module.register_forward_hook(self.hook_fn)
+
+    def hook_fn(self, module, input, output):
+        self.input = input
+
+    def close(self):
+        self.hook.remove()
+
+def add_input_hook_for_2nd_conv_layer(model):
+    Hook = None
+    for module in model.modules():
+        if isinstance(module, nn.Conv2d):
+            if module.in_channels != 3:
+                Hook = Hook_record_input(module)
+                break
+    return Hook
+
+def get_input_for_2nd_conv_layer_from_Hook(Hook):
+    return Hook.input[0]
+
+
 def get_mean_and_std(dataset):
     '''Compute the mean and std value of dataset.'''
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=2)
@@ -217,6 +240,8 @@ def simplify_BN_parameters(model):
             m.mode = 'hardware'
 
     num_pairs = len(ml) // 2
+    biases = {}
+    weights = {}
     for p in range(1, num_pairs): # skip the first pair
         if (isinstance(ml[2*p], nn.Conv2d) and isinstance(ml[2*p+1], BatchNorm2d)) or \
            (isinstance(ml[2*p], nn.Linear) and isinstance(ml[2*p+1], BatchNorm1d)):
@@ -236,6 +261,15 @@ def simplify_BN_parameters(model):
             ml[2*p+1].weight_effective.data.fill_(1.)
             # round bias to int8
             ml[2*p+1].bias_effective.data.clamp_(-255, 256).round_() # -bias_effective is the actual data load to HW
+            bias = ml[2*p+1].bias_effective.data.cpu().numpy()
+            biases['B%d' % p] = (-bias).astype('int8')
+            weights['W%d' % p] = ml[2*p].weight.data.cpu().numpy().astype('int8')
+    biases['B%d' % (p+1)] = (ml[2*p+2].bias.data.cpu().numpy() * 5. / ml[2*p+2].quant_bound).round().astype('int8')
+    weights['W%d' % (p+1)] = ml[2*p+2].weight.data.cpu().numpy().astype('int8')
+
+
+    sio.savemat('results/Biases.mat', biases)
+    sio.savemat('results/Weights.mat', weights)
 
 
 
