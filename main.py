@@ -87,20 +87,6 @@ model_dict = {
         'ResNet18': ResNet18()
         }
 model = model_dict[args.arch]
-#model = VGG_binary('VGG')
-#model = VGG('VGG16')
-# model = ResNet18()
-# model = PreActResNet18()
-# model = GoogLeNet()
-# model = DenseNet121()
-# model = ResNeXt29_2x64d()
-# model = MobileNet()
-# model = MobileNetV2()
-# model = DPN92()
-# model = ShuffleNetG2()
-# model = SENet18()
-# model = ShuffleNetV2(1)
-# model = EfficientNetB0()
 if args.evaluate is None:
     print(model)
 
