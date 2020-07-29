@@ -6,10 +6,6 @@ import numpy as np
 
 def Quantize(tensor, H=1., n_bits=2, mode='software'):
     if n_bits == 1:
-        #if mode == 'software':
-        #    return tensor.sign() * H
-        #else:
-        #    return tensor.add(1e-15).sign() * H # quantize 0. to -1.
         #return tensor.sign() * H
         tensor=torch.where(tensor > 0, torch.tensor(H, device=tensor.device), torch.tensor(-H, device=tensor.device)) # quantize 0 to -1
         return tensor
