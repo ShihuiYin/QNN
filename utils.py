@@ -259,8 +259,6 @@ def simplify_BN_parameters(model):
             # comment below if it's not -1/+1 activation
             ml[2*p+1].bias_effective.data /= ml[2*p+1].weight_effective
             ml[2*p+1].weight_effective.data.fill_(1.)
-            print(ml[2*p+1].bias_effective.max())
-            import pdb; pdb.set_trace()
             # round bias to int8 (ceiling)
             ml[2*p+1].bias_effective.data.clamp_(-127, 128).ceil_() # -bias_effective is the actual data load to HW
             bias = ml[2*p+1].bias_effective.data.cpu().numpy()

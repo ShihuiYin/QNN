@@ -1,7 +1,7 @@
 '''VGG11/13/16/19 in Pytorch. Always proceed activation layer with batchnorm such that we can fuse these two'''
 import torch
 import torch.nn as nn
-from .quant import QuantizeConv2d, QuantizeLinear, QuantizeActLayer
+from .quant import QuantizeConv2d, QuantizeLinear, QuantizeActLayer, BatchNorm2d, BatchNorm1d
 
 cfg = {
     'VGG': [128, 128, 'M', 256, 256, 'M', 512, 512, 'M'],
@@ -33,8 +33,10 @@ class VGG_nobn_quant(nn.Module):
             last_conv_layer_output_dim = 512 * (4 ** (5 - num_maxpooling_layers))
         self.classifier = nn.Sequential(
                 QuantizeLinear(last_conv_layer_output_dim, fc, n_bits=w_bits, H=w_H),
+                BatchNorm1d(fc, affine=False),
                 QuantizeActLayer(n_bits=a_bits, H=a_H),
                 QuantizeLinear(fc, fc, n_bits=w_bits, H=w_H),
+                BatchNorm1d(fc, affine=False),
                 QuantizeActLayer(n_bits=a_bits, H=a_H),
                 QuantizeLinear(fc, 10, n_bits=w_bits, H=w_H),
                 )
@@ -66,10 +68,10 @@ class VGG_nobn_quant(nn.Module):
                 elif x == 'A':
                     layers += [nn.AvgPool2d(kernel_size=8)]
                 else:
-                    layers += [QuantizeActLayer(n_bits=self.a_bits, H=self.a_H)]
+                    layers += [BatchNorm2d(in_channels), QuantizeActLayer(n_bits=self.a_bits, H=self.a_H)]
                     layers += [QuantizeConv2d(in_channels, x, kernel_size=3, padding=1, n_bits=self.w_bits, H=self.w_H)]
                     in_channels = x
-        layers += [QuantizeActLayer(n_bits=self.a_bits, H=self.a_H)]
+        layers += [BatchNorm2d(in_channels, affine=False), QuantizeActLayer(n_bits=self.a_bits, H=self.a_H)]
         return nn.Sequential(*layers)
 
 

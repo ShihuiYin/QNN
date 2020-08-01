@@ -25,10 +25,10 @@ def Quant_k(x, H=64., levels=11, mode='software'): # levels should be an odd num
     return y
 
 def Quant_prob(x, cdf_table=None, H=60, levels=11, mode='software'):
-    if mode == 'software':
-        y = x.clone()
+    if cdf_table is None:
+        y = nn.functional.hardtanh(x, -H, H)
     else:
-        y = x
+        y = x.clone()
     scale = (levels - 1) / (2*H)
     if cdf_table is None: # ideal quantization
         y.data.mul_(scale).round_()
