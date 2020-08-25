@@ -26,23 +26,31 @@ def get_loss_for_H(model, weight_decay=1e-4):
             #loss += -1/2 * weight_decay * (m.H ** 2)
     return loss
 
-def update_sram_depth(model, sram_depth, quant_bound, prob_table):
+def update_sram_depth(model, sram_depth, quant_bound, prob_table, prob_table_9):
+    if prob_table is not None:
+        data = sio.loadmat(prob_table)
+        cdf_table = torch.tensor(data['prob']).cuda().cumsum(dim=-1).float()
+        if cdf_table.shape[0] == sram_depth + 1: #step_size = 2, intopolate to step_size = 1
+            cdf_table_interpolated = torch.zeros((2*sram_depth+1, cdf_table.shape[1]-1)).cuda()
+            for i in range(cdf_table.shape[0]):
+                cdf_table_interpolated[i*2] = cdf_table[i,0:-1]
+            for i in range(cdf_table.shape[0]-1):
+                cdf_table_interpolated[i*2+1] = (cdf_table_interpolated[i*2] + cdf_table_interpolated[i*2+2])/2.
+        else:
+             cdf_table_interpolated = cdf_table[:,0:-1].contiguous()
+    if prob_table_9 is not None:
+        data = sio.loadmat(prob_table_9)
+        cdf_table_9 = torch.tensor(data['prob']).cuda().cumsum(dim=-1).float()
+        cdf_table_interpolated_9 = cdf_table_9[:,0:-1].contiguous()
+
     for m in model.modules():
         if isinstance(m, QuantizeLinear) or isinstance(m, QuantizeConv2d):
             m.sram_depth = sram_depth
             m.quant_bound = quant_bound
             if prob_table is not None:
-                data = sio.loadmat(prob_table)
-                cdf_table = torch.tensor(data['prob']).cuda().cumsum(dim=-1).float()
-                if cdf_table.shape[0] == sram_depth + 1: #step_size = 2, intopolate to step_size = 1
-                    cdf_table_interpolated = torch.zeros((2*sram_depth+1, cdf_table.shape[1]-1)).cuda()
-                    for i in range(cdf_table.shape[0]):
-                        cdf_table_interpolated[i*2] = cdf_table[i,0:-1]
-                    for i in range(cdf_table.shape[0]-1):
-                        cdf_table_interpolated[i*2+1] = (cdf_table_interpolated[i*2] + cdf_table_interpolated[i*2+2])/2.
-                else:
-                     cdf_table_interpolated = cdf_table[:,0:-1].contiguous()
                 m.cdf_table = torch.nn.Embedding.from_pretrained(cdf_table_interpolated)
+            if isinstance(m, QuantizeConv2d) and prob_table_9 is not None:
+                m.cdf_table_9 = torch.nn.Embedding.from_pretrained(cdf_table_interpolated_9)
 
 class Hook_record_input():
     def __init__(self, module):
