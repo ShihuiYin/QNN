@@ -36,11 +36,10 @@ def Quant_prob(x, cdf_table=None, H=60, levels=11, mode='software'):
         with torch.no_grad():
             sram_depth = (cdf_table.weight.shape[0]-1) / 2
             x_ind = x.add(sram_depth).type(torch.int64)
-            #x_cdf = cdf_table[x_ind]
             x_cdf = cdf_table(x_ind)
+            #import pdb; pdb.set_trace()
             x_comp = torch.rand_like(x).unsqueeze(-1).expand_as(x_cdf).sub(x_cdf).sign()
             y.data = x_comp.sum(dim=-1).mul(0.5)
-            #y.data = (x_rand-x_cdf).sign().sum(dim=-1).mul(0.5)
     if mode == 'software':
         scale_inv = 1. / scale
         y.data.mul_(scale_inv)
@@ -109,7 +108,7 @@ class QuantizeConv2d(nn.Conv2d):
             self.weight.org=self.weight.data.clone()
         self.weight.data=Quantize(self.weight.org, n_bits=self.n_bits)
         if self.sram_depth > 0 and self.in_channels > 3:
-            input_padded = torch.nn.functional.pad(input, [self.padding[0]]*4, value=0.)
+            input_padded = torch.nn.functional.pad(input, [self.padding[0]]*4, value=1.)
             input_list = torch.split(input_padded, self.sram_depth, dim=1)
             self.weight_list = torch.split(self.weight, self.sram_depth, dim=1)
             out = 0
@@ -123,7 +122,11 @@ class QuantizeConv2d(nn.Conv2d):
                         partial_sum = nn.functional.conv2d(input_kj, weight_kj, None, self.stride, (0,0), self.dilation, self.groups)
                         partial_sum_quantized = Quant_prob(partial_sum, cdf_table=self.cdf_table, H=self.quant_bound, mode=self.mode)
                         out_temp += partial_sum_quantized
+                if self.mode == 'software' and self.cdf_table_9 is not None:
+                    out_temp /= (self.quant_bound / 5.)
                 out += Quant_prob(out_temp, cdf_table=self.cdf_table_9, H=45., levels=91, mode=self.mode)
+            if self.mode == 'software' and self.cdf_table_9 is not None:
+                out *= (self.quant_bound / 5.)
 
         else:
             out = nn.functional.conv2d(input, self.weight, None, self.stride,
